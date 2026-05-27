@@ -130,7 +130,7 @@ async function saveChecklist(data) {
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Чек-листы!A:E',
+    range: 'Checklist!A:E',
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: rows },
   });
