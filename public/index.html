@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Заказ у поставщиков</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="loading">
+      <div class="spinner"></div>
+      <p>Загрузка каталога...</p>
+    </div>
+
+    <div id="main" class="hidden">
+      <header>
+        <h1>Каталог заказов</h1>
+        <div id="cart-badge" class="hidden">
+          <span id="cart-count">0</span> позиций
+        </div>
+      </header>
+
+      <div id="search-bar">
+        <input type="text" id="search-input" placeholder="Поиск товара..." />
+      </div>
+
+      <div id="category-tabs"></div>
+
+      <div id="catalog"></div>
+    </div>
+
+    <div id="cart-panel" class="hidden">
+      <div class="panel-header">
+        <button id="back-btn">← Назад</button>
+        <h2>Ваша заявка</h2>
+      </div>
+      <div id="cart-content"></div>
+      <div id="cart-actions">
+        <button id="send-orders-btn" class="btn-primary">Отправить поставщикам</button>
+        <button id="clear-cart-btn" class="btn-secondary">Очистить</button>
+      </div>
+    </div>
+
+    <div id="order-panel" class="hidden">
+      <div class="panel-header">
+        <button id="order-back-btn">← Назад</button>
+        <h2>Отправка заявок</h2>
+      </div>
+      <p class="order-hint">Нажмите на каждого поставщика — откроется WhatsApp с готовым сообщением.</p>
+      <div id="order-list"></div>
+      <div class="order-done">
+        <button id="done-btn" class="btn-primary">Готово ✓</button>
+      </div>
+    </div>
+
+    <div id="error-screen" class="hidden">
+      <div class="error-box">
+        <p>⚠️ Ошибка загрузки каталога</p>
+        <button onclick="loadCatalog()" class="btn-primary">Повторить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fab" class="hidden">
+    <button id="fab-btn" onclick="openCart()">
+      🛒 <span id="fab-count">0</span>
+    </button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
