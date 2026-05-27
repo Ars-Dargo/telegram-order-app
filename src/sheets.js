@@ -114,8 +114,34 @@ async function getOrders() {
     });
 }
 
+async function saveChecklist(data) {
+  const auth = await getAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+  const now = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+
+  const doneItems = data.items.filter(i => i.done).map(i => i.name);
+  const notDoneItems = data.items.filter(i => !i.done).map(i => i.name);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: process.env.SPREADSHEET_ID,
+    range: 'ChecklistReports!A:G',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[
+        now,
+        data.userId,
+        data.userName,
+        data.location,
+        doneItems.length,
+        data.items.length,
+        notDoneItems.length > 0 ? notDoneItems.join('; ') : '—',
+      ]],
+    },
+  });
+}
+
 function clearCache() {
   cache.flushAll();
 }
 
-module.exports = { getSuppliers, getProducts, getLocations, getOrders, saveOrder, clearCache };
+module.exports = { getSuppliers, getProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache };

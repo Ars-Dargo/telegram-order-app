@@ -11,6 +11,22 @@ let infoActiveCategory = 'Все';
 let sentOrders = new Set();
 let selectedLocation = null;
 let currentSupplierOrders = [];
+let historyOrders = {};
+let checklistLocation = null;
+let checklistChecked = new Set();
+
+const CHECKLIST_ITEMS = [
+  'Включить кофемашину и прогреть',
+  'Проверить холодильники с десертами',
+  'Выставить витрину и проверить выкладку',
+  'Проверить дату и состояние позиций',
+  'Пополнить расходники (стаканы, крышки, салфетки)',
+  'Проверить наличие молока, сливок, сиропов',
+  'Протереть стойку и кофемашину',
+  'Проверить чистоту зала и санузла',
+  'Проверить кассу и терминал оплаты',
+  'Сфотографировать витрину на открытие',
+];
 
 // ─── Load ──────────────────────────────────────────────────────────────────
 
@@ -73,13 +89,12 @@ function renderHistoryScreen(orders) {
     return;
   }
 
-  // Group rows by order_id
-  const grouped = {};
+  historyOrders = {};
   const orderedIds = [];
   orders.forEach(row => {
     if (!row.order_id) return;
-    if (!grouped[row.order_id]) {
-      grouped[row.order_id] = {
+    if (!historyOrders[row.order_id]) {
+      historyOrders[row.order_id] = {
         date: row.date,
         location: row.location,
         user_name: row.user_name,
@@ -87,14 +102,14 @@ function renderHistoryScreen(orders) {
       };
       orderedIds.push(row.order_id);
     }
-    grouped[row.order_id].suppliers.push({
+    historyOrders[row.order_id].suppliers.push({
       name: row.supplier_name,
       items: row.items,
     });
   });
 
   container.innerHTML = orderedIds.map(id => {
-    const o = grouped[id];
+    const o = historyOrders[id];
     return `
       <div class="history-card">
         <div class="history-meta">
@@ -108,9 +123,57 @@ function renderHistoryScreen(orders) {
             <div class="history-items">${escHtml(s.items)}</div>
           </div>
         `).join('')}
+        <button class="history-reorder-btn" onclick="reorderFromHistory('${escHtml(id)}')">
+          🔄 Повторить заказ
+        </button>
       </div>
     `;
   }).join('');
+}
+
+function reorderFromHistory(orderId) {
+  const order = historyOrders[orderId];
+  if (!order) return;
+
+  cart = {};
+  catalog.products.forEach(p => {
+    const el = document.getElementById(`qty-${p.id}`);
+    if (el) el.textContent = '0';
+  });
+
+  const nameMap = {};
+  catalog.products.forEach(p => { nameMap[p.name.toLowerCase()] = p; });
+
+  let restored = 0;
+  order.suppliers.forEach(s => {
+    (s.items || '').split('; ').forEach(itemStr => {
+      const match = itemStr.match(/^(.+) x(\d+)/);
+      if (!match) return;
+      const product = nameMap[match[1].trim().toLowerCase()];
+      const qty = parseInt(match[2]);
+      if (product && qty > 0) {
+        cart[product.id] = qty;
+        restored++;
+      }
+    });
+  });
+
+  if (restored === 0) {
+    showToast('Товары из этого заказа недоступны');
+    return;
+  }
+
+  if (order.location) {
+    const loc = catalog.locations.find(l => order.location.startsWith(l.name));
+    if (loc) selectedLocation = loc;
+  }
+
+  hide('history-screen');
+  updateLocationStrip();
+  updateCartUI();
+  show('main');
+  if (Object.keys(cart).length > 0) show('fab');
+  showToast(`Восстановлено ${restored} позиций`);
 }
 
 // ─── Location screen ───────────────────────────────────────────────────────
@@ -534,6 +597,104 @@ function cleanPhone(phone) {
   return phone.replace(/\D/g, '');
 }
 
+// ─── Checklist ─────────────────────────────────────────────────────────────
+
+function showChecklistScreen() {
+  hide('home-screen');
+  checklistLocation = null;
+  checklistChecked = new Set();
+  renderChecklistLocationList();
+  renderChecklistItems();
+  show('checklist-screen');
+}
+
+function renderChecklistLocationList() {
+  const container = document.getElementById('checklist-location-list');
+  if (!catalog.locations || catalog.locations.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:20px 0">Точки не добавлены</div>';
+    return;
+  }
+  container.innerHTML = catalog.locations.map(loc => `
+    <div class="location-card ${checklistLocation?.id === loc.id ? 'selected' : ''}"
+         onclick="selectChecklistLocation('${escHtml(loc.id)}')">
+      <div class="location-info">
+        <div class="location-name">${escHtml(loc.name)}</div>
+        ${loc.address ? `<div class="location-address">${escHtml(loc.address)}</div>` : ''}
+      </div>
+      <div class="location-check">✓</div>
+    </div>
+  `).join('');
+}
+
+function selectChecklistLocation(locId) {
+  checklistLocation = catalog.locations.find(l => l.id === locId) || null;
+  renderChecklistLocationList();
+  updateChecklistSubmitBtn();
+}
+
+function renderChecklistItems() {
+  const container = document.getElementById('checklist-items');
+  container.innerHTML = CHECKLIST_ITEMS.map((item, idx) => `
+    <div class="checklist-item ${checklistChecked.has(idx) ? 'done' : ''}"
+         onclick="toggleChecklistItem(${idx})">
+      <div class="checklist-checkbox">${checklistChecked.has(idx) ? '✓' : ''}</div>
+      <div class="checklist-label">${escHtml(item)}</div>
+    </div>
+  `).join('');
+  updateChecklistScore();
+}
+
+function toggleChecklistItem(idx) {
+  if (checklistChecked.has(idx)) checklistChecked.delete(idx);
+  else checklistChecked.add(idx);
+  renderChecklistItems();
+}
+
+function updateChecklistScore() {
+  const done = checklistChecked.size;
+  const total = CHECKLIST_ITEMS.length;
+  const label = document.getElementById('checklist-score-label');
+  if (label) label.textContent = `Выполнено: ${done} / ${total}`;
+}
+
+function updateChecklistSubmitBtn() {
+  const btn = document.getElementById('checklist-submit-btn');
+  if (btn) btn.disabled = !checklistLocation;
+}
+
+async function submitChecklist() {
+  const btn = document.getElementById('checklist-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Отправка...';
+
+  const items = CHECKLIST_ITEMS.map((name, idx) => ({ name, done: checklistChecked.has(idx) }));
+  const userData = tg?.initDataUnsafe?.user;
+  const locationStr = checklistLocation
+    ? `${checklistLocation.name}${checklistLocation.address ? ', ' + checklistLocation.address : ''}`
+    : '';
+
+  try {
+    const res = await fetch('/api/checklist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: userData?.id || 'unknown',
+        userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
+        location: locationStr,
+        items,
+      }),
+    });
+    if (!res.ok) throw new Error();
+    hide('checklist-screen');
+    show('home-screen');
+    showToast('Отчёт по открытию отправлен ✓');
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Отправить отчёт';
+    showToast('Ошибка — попробуйте ещё раз');
+  }
+}
+
 // ─── Toast ─────────────────────────────────────────────────────────────────
 
 function showToast(msg) {
@@ -551,6 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('order-flow-btn').onclick = showOrderFlow;
   document.getElementById('info-flow-btn').onclick = showInfoScreen;
   document.getElementById('history-flow-btn').onclick = showHistoryScreen;
+  document.getElementById('checklist-flow-btn').onclick = showChecklistScreen;
 
   document.getElementById('loc-back-btn').onclick = () => {
     hide('location-screen');
@@ -600,6 +762,12 @@ document.addEventListener('DOMContentLoaded', () => {
     hide('history-screen');
     show('home-screen');
   };
+
+  document.getElementById('checklist-back-btn').onclick = () => {
+    hide('checklist-screen');
+    show('home-screen');
+  };
+  document.getElementById('checklist-submit-btn').onclick = submitChecklist;
 
   document.getElementById('search-input').addEventListener('input', renderProducts);
   document.getElementById('info-search-input').addEventListener('input', renderInfoProducts);

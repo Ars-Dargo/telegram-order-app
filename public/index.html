@@ -25,6 +25,7 @@
           <button id="order-flow-btn" class="home-btn">Сделать заказ</button>
           <button id="info-flow-btn" class="home-btn home-btn-info">О десертах</button>
           <button id="history-flow-btn" class="home-btn home-btn-history">История заказов</button>
+          <button id="checklist-flow-btn" class="home-btn home-btn-history">Открытие смены ✓</button>
         </div>
       </div>
     </div>
@@ -96,6 +97,21 @@
       </div>
       <div id="info-category-tabs"></div>
       <div id="info-catalog"></div>
+    </div>
+
+    <!-- Checklist screen -->
+    <div id="checklist-screen" class="hidden fullscreen-panel">
+      <div class="panel-header">
+        <button id="checklist-back-btn">← Назад</button>
+        <h2>Открытие смены</h2>
+      </div>
+      <p class="order-hint">Выберите точку:</p>
+      <div id="checklist-location-list" style="padding:0 16px"></div>
+      <p class="order-hint" id="checklist-score-label" style="padding-top:16px"></p>
+      <div id="checklist-items" style="padding:0 16px 100px"></div>
+      <div class="bottom-actions">
+        <button id="checklist-submit-btn" class="btn-primary" disabled>Отправить отчёт</button>
+      </div>
     </div>
 
     <!-- History screen -->
