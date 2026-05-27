@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { getSuppliers, getProducts, saveOrder, clearCache } = require('./sheets');
+const { getSuppliers, getProducts, getLocations, saveOrder, clearCache } = require('./sheets');
 
 const app = express();
 app.use(cors());
@@ -12,8 +12,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Отдаём все продукты и поставщиков за один запрос
 app.get('/api/catalog', async (req, res) => {
   try {
-    const [suppliers, products] = await Promise.all([getSuppliers(), getProducts()]);
-    res.json({ suppliers, products });
+    const [suppliers, products, locations] = await Promise.all([getSuppliers(), getProducts(), getLocations()]);
+    res.json({ suppliers, products, locations });
   } catch (err) {
     console.error('Catalog error:', err.message);
     res.status(500).json({ error: 'Не удалось загрузить каталог' });

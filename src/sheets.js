@@ -56,6 +56,11 @@ async function getProducts() {
   return rows.filter(r => r.id && r.name && r.available?.toUpperCase() !== 'FALSE');
 }
 
+async function getLocations() {
+  const rows = await getSheetData('Locations');
+  return rows.filter(r => r.id && r.name);
+}
+
 async function saveOrder(order) {
   const auth = await getAuth();
   const sheets = google.sheets({ version: 'v4', auth });
@@ -69,7 +74,7 @@ async function saveOrder(order) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: 'Orders!A:G',
+      range: 'Orders!A:H',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[
@@ -80,6 +85,7 @@ async function saveOrder(order) {
           supplierOrder.supplierName,
           itemsText,
           supplierOrder.items.length,
+          order.location || '',
         ]],
       },
     });
@@ -90,4 +96,4 @@ function clearCache() {
   cache.flushAll();
 }
 
-module.exports = { getSuppliers, getProducts, saveOrder, clearCache };
+module.exports = { getSuppliers, getProducts, getLocations, saveOrder, clearCache };

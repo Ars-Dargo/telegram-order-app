@@ -4,31 +4,100 @@ if (tg) {
   tg.expand();
 }
 
-let catalog = { suppliers: [], products: [] };
-let cart = {}; // { productId: quantity }
+let catalog = { suppliers: [], products: [], locations: [] };
+let cart = {};
 let activeCategory = 'Все';
+let infoActiveCategory = 'Все';
 let sentOrders = new Set();
+let selectedLocation = null;
 
 // ─── Load ──────────────────────────────────────────────────────────────────
 
 async function loadCatalog() {
-  show('loading'); hide('error-screen'); hide('main');
+  show('loading'); hide('error-screen'); hide('home-screen');
 
   try {
     const res = await fetch('/api/catalog');
     if (!res.ok) throw new Error('Network error');
     catalog = await res.json();
     renderCatalog();
-    show('main');
+    hide('loading');
+    show('home-screen');
   } catch (e) {
     hide('loading');
     show('error-screen');
-  } finally {
-    hide('loading');
   }
 }
 
-// ─── Render catalog ────────────────────────────────────────────────────────
+// ─── Home screen ───────────────────────────────────────────────────────────
+
+function showOrderFlow() {
+  hide('home-screen');
+  renderLocationScreen();
+  show('location-screen');
+}
+
+function showInfoScreen() {
+  hide('home-screen');
+  infoActiveCategory = 'Все';
+  renderInfoCategoryTabs();
+  renderInfoProducts();
+  show('info-screen');
+}
+
+// ─── Location screen ───────────────────────────────────────────────────────
+
+function renderLocationScreen() {
+  const container = document.getElementById('location-list');
+  const confirmBtn = document.getElementById('loc-confirm-btn');
+
+  if (!catalog.locations || catalog.locations.length === 0) {
+    container.innerHTML = '<div class="empty-state">Точки не добавлены.<br>Заполните лист <b>Locations</b> в Google Sheets.</div>';
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Продолжить →';
+    return;
+  }
+
+  confirmBtn.textContent = 'Далее →';
+  confirmBtn.disabled = !selectedLocation;
+
+  container.innerHTML = catalog.locations.map(loc => `
+    <div class="location-card ${selectedLocation?.id === loc.id ? 'selected' : ''}"
+         onclick="selectLocation('${escHtml(loc.id)}')">
+      <div class="location-info">
+        <div class="location-name">${escHtml(loc.name)}</div>
+        ${loc.address ? `<div class="location-address">${escHtml(loc.address)}</div>` : ''}
+      </div>
+      <div class="location-check">✓</div>
+    </div>
+  `).join('');
+}
+
+function selectLocation(locId) {
+  selectedLocation = catalog.locations.find(l => l.id === locId) || null;
+  renderLocationScreen();
+}
+
+function confirmLocation() {
+  hide('location-screen');
+  updateLocationStrip();
+  show('main');
+  if (Object.keys(cart).length > 0) show('fab');
+}
+
+function updateLocationStrip() {
+  const strip = document.getElementById('location-strip');
+  if (selectedLocation) {
+    let text = `📍 ${selectedLocation.name}`;
+    if (selectedLocation.address) text += ` — ${selectedLocation.address}`;
+    strip.textContent = text;
+    strip.classList.remove('hidden');
+  } else {
+    strip.classList.add('hidden');
+  }
+}
+
+// ─── Catalog ───────────────────────────────────────────────────────────────
 
 function renderCatalog() {
   renderCategoryTabs();
@@ -39,7 +108,8 @@ function renderCategoryTabs() {
   const categories = ['Все', ...new Set(catalog.products.map(p => p.category).filter(Boolean))];
   const container = document.getElementById('category-tabs');
   container.innerHTML = categories.map(cat => `
-    <button class="cat-tab ${cat === activeCategory ? 'active' : ''}" onclick="setCategory('${escHtml(cat)}')">${escHtml(cat)}</button>
+    <button class="cat-tab ${cat === activeCategory ? 'active' : ''}"
+            onclick="setCategory('${escHtml(cat)}')">${escHtml(cat)}</button>
   `).join('');
 }
 
@@ -49,20 +119,19 @@ function setCategory(cat) {
   renderProducts();
 }
 
-function renderProducts(searchTerm = '') {
-  const search = document.getElementById('search-input')?.value.toLowerCase() || searchTerm;
+function renderProducts() {
+  const search = document.getElementById('search-input')?.value.toLowerCase() || '';
   const container = document.getElementById('catalog');
 
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
 
-  let filtered = catalog.products.filter(p => {
+  const filtered = catalog.products.filter(p => {
     const matchCat = activeCategory === 'Все' || p.category === activeCategory;
     const matchSearch = !search || p.name.toLowerCase().includes(search);
     return matchCat && matchSearch;
   });
 
-  // Group by supplier
   const grouped = {};
   filtered.forEach(p => {
     const sid = p.supplier_id || 'other';
@@ -71,7 +140,7 @@ function renderProducts(searchTerm = '') {
   });
 
   if (Object.keys(grouped).length === 0) {
-    container.innerHTML = '<div class="empty-cart" style="padding:40px 0">Ничего не найдено</div>';
+    container.innerHTML = '<div class="empty-state" style="padding:40px 0">Ничего не найдено</div>';
     return;
   }
 
@@ -88,7 +157,7 @@ function renderProducts(searchTerm = '') {
 
 function renderProductCard(p) {
   const qty = cart[p.id] || 0;
-  const priceStr = p.price ? `${p.price} ₽ / ${p.unit || 'шт'}` : (p.unit ? p.unit : '');
+  const priceStr = p.price ? `${p.price} ₽` : '';
   return `
     <div class="product-card" id="card-${p.id}">
       <div class="product-info">
@@ -105,30 +174,97 @@ function renderProductCard(p) {
   `;
 }
 
+// ─── Info screen ───────────────────────────────────────────────────────────
+
+function renderInfoCategoryTabs() {
+  const categories = ['Все', ...new Set(catalog.products.map(p => p.category).filter(Boolean))];
+  const container = document.getElementById('info-category-tabs');
+  container.innerHTML = categories.map(cat => `
+    <button class="cat-tab ${cat === infoActiveCategory ? 'active' : ''}"
+            onclick="setInfoCategory('${escHtml(cat)}')">${escHtml(cat)}</button>
+  `).join('');
+}
+
+function setInfoCategory(cat) {
+  infoActiveCategory = cat;
+  renderInfoCategoryTabs();
+  renderInfoProducts();
+}
+
+function renderInfoProducts() {
+  const search = document.getElementById('info-search-input')?.value.toLowerCase() || '';
+  const container = document.getElementById('info-catalog');
+
+  const supplierMap = {};
+  catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
+
+  const filtered = catalog.products.filter(p => {
+    const matchCat = infoActiveCategory === 'Все' || p.category === infoActiveCategory;
+    const matchSearch = !search ||
+      p.name.toLowerCase().includes(search) ||
+      (p.description || '').toLowerCase().includes(search);
+    return matchCat && matchSearch;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:40px 0">Ничего не найдено</div>';
+    return;
+  }
+
+  const grouped = {};
+  filtered.forEach(p => {
+    const sid = p.supplier_id || 'other';
+    if (!grouped[sid]) grouped[sid] = [];
+    grouped[sid].push(p);
+  });
+
+  container.innerHTML = Object.entries(grouped).map(([sid, products]) => {
+    const supplier = supplierMap[sid];
+    return `
+      <div class="supplier-section">
+        ${supplier ? `<div class="supplier-title">${escHtml(supplier.name)}</div>` : ''}
+        ${products.map(p => renderInfoCard(p, supplierMap)).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderInfoCard(p) {
+  const priceStr = p.price ? `${p.price} ₽` : '';
+  return `
+    <div class="info-card">
+      <div class="info-card-header">
+        <div class="info-card-name">${escHtml(p.name)}</div>
+        ${priceStr ? `<div class="info-card-price">${escHtml(priceStr)}</div>` : ''}
+      </div>
+      ${p.category ? `<div class="info-card-category">${escHtml(p.category)}</div>` : ''}
+      ${p.description ? `<div class="info-card-desc">${escHtml(p.description)}</div>` : ''}
+      ${p.storage ? `<div class="info-card-storage">🌡 ${escHtml(p.storage)}</div>` : ''}
+    </div>
+  `;
+}
+
 // ─── Cart logic ────────────────────────────────────────────────────────────
 
 function changeQty(productId, delta) {
   const current = cart[productId] || 0;
   const next = Math.max(0, current + delta);
-  if (next === 0) {
-    delete cart[productId];
-  } else {
-    cart[productId] = next;
-  }
+  if (next === 0) delete cart[productId];
+  else cart[productId] = next;
+
   const qtyEl = document.getElementById(`qty-${productId}`);
   if (qtyEl) qtyEl.textContent = next;
   updateCartUI();
 }
 
 function updateCartUI() {
-  const total = Object.values(cart).reduce((a, b) => a + b, 0);
+  const posCount = Object.keys(cart).length;
   const badge = document.getElementById('cart-badge');
   const fabEl = document.getElementById('fab');
   const fabCount = document.getElementById('fab-count');
   const cartCount = document.getElementById('cart-count');
 
-  if (total > 0) {
-    const posCount = Object.keys(cart).length;
+  if (posCount > 0) {
     badge.classList.remove('hidden');
     cartCount.textContent = posCount;
     fabEl.classList.remove('hidden');
@@ -163,11 +299,15 @@ function renderCartPanel() {
   const container = document.getElementById('cart-content');
 
   if (Object.keys(grouped).length === 0) {
-    container.innerHTML = '<div class="empty-cart">Корзина пуста</div>';
+    container.innerHTML = '<div class="empty-state">Корзина пуста</div>';
     return;
   }
 
-  container.innerHTML = Object.entries(grouped).map(([sid, items]) => {
+  const locBadge = selectedLocation
+    ? `<div class="cart-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.address ? ' — ' + escHtml(selectedLocation.address) : ''}</div>`
+    : '';
+
+  container.innerHTML = locBadge + Object.entries(grouped).map(([sid, items]) => {
     const supplier = supplierMap[sid];
     return `
       <div class="cart-supplier-group">
@@ -226,7 +366,10 @@ async function sendOrders() {
     };
   });
 
-  // Save to Google Sheets
+  const locationStr = selectedLocation
+    ? `${selectedLocation.name}${selectedLocation.address ? ', ' + selectedLocation.address : ''}`
+    : '';
+
   try {
     const userData = tg?.initDataUnsafe?.user;
     await fetch('/api/orders', {
@@ -235,6 +378,7 @@ async function sendOrders() {
       body: JSON.stringify({
         userId: userData?.id || 'unknown',
         userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
+        location: locationStr,
         supplierOrders,
       }),
     });
@@ -250,8 +394,12 @@ async function sendOrders() {
 
 function renderOrderPanel(supplierOrders) {
   const container = document.getElementById('order-list');
-  container.innerHTML = supplierOrders.map((so, idx) => {
-    const summary = so.items.map(i => `${i.name} — ${i.quantity} ${i.unit}`).join('\n');
+
+  const locBadge = selectedLocation
+    ? `<div class="order-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.address ? ' — ' + escHtml(selectedLocation.address) : ''}</div>`
+    : '';
+
+  container.innerHTML = locBadge + supplierOrders.map((so, idx) => {
     const msgText = buildWhatsAppMessage(so);
     const waUrl = so.whatsapp
       ? `https://wa.me/${cleanPhone(so.whatsapp)}?text=${encodeURIComponent(msgText)}`
@@ -272,7 +420,13 @@ function renderOrderPanel(supplierOrders) {
 
 function buildWhatsAppMessage(supplierOrder) {
   const date = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  let msg = `Заявка от ${date}\n\n`;
+  let msg = `Заявка от ${date}\n`;
+  if (selectedLocation) {
+    msg += `Точка: ${selectedLocation.name}`;
+    if (selectedLocation.address) msg += `, ${selectedLocation.address}`;
+    msg += '\n';
+  }
+  msg += '\n';
   supplierOrder.items.forEach(item => {
     msg += `• ${item.name} — ${item.quantity} ${item.unit}\n`;
   });
@@ -296,32 +450,55 @@ function cleanPhone(phone) {
 document.addEventListener('DOMContentLoaded', () => {
   loadCatalog();
 
+  document.getElementById('order-flow-btn').onclick = showOrderFlow;
+  document.getElementById('info-flow-btn').onclick = showInfoScreen;
+
+  document.getElementById('loc-back-btn').onclick = () => {
+    hide('location-screen');
+    show('home-screen');
+  };
+  document.getElementById('loc-confirm-btn').onclick = confirmLocation;
+
+  document.getElementById('catalog-home-btn').onclick = () => {
+    hide('main'); hide('fab');
+    show('home-screen');
+  };
+
   document.getElementById('cart-badge').onclick = openCart;
+
   document.getElementById('back-btn').onclick = () => {
     hide('cart-panel');
     show('main');
-    show('fab');
-    renderProducts();
+    if (Object.keys(cart).length > 0) show('fab');
   };
+
   document.getElementById('send-orders-btn').onclick = sendOrders;
+
   document.getElementById('clear-cart-btn').onclick = () => {
     clearCart();
     hide('cart-panel');
     show('main');
-    renderCartPanel();
   };
+
   document.getElementById('order-back-btn').onclick = () => {
     hide('order-panel');
     show('cart-panel');
     renderCartPanel();
   };
+
   document.getElementById('done-btn').onclick = () => {
     clearCart();
     hide('order-panel');
-    show('main');
-    renderProducts();
+    show('home-screen');
   };
-  document.getElementById('search-input').addEventListener('input', () => renderProducts());
+
+  document.getElementById('info-back-btn').onclick = () => {
+    hide('info-screen');
+    show('home-screen');
+  };
+
+  document.getElementById('search-input').addEventListener('input', renderProducts);
+  document.getElementById('info-search-input').addEventListener('input', renderInfoProducts);
 });
 
 // ─── Utils ─────────────────────────────────────────────────────────────────

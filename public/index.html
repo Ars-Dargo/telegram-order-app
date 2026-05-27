@@ -9,29 +9,57 @@
 </head>
 <body>
   <div id="app">
+
+    <!-- Loading -->
     <div id="loading">
       <div class="spinner"></div>
-      <p>Загрузка каталога...</p>
+      <p>Загрузка...</p>
     </div>
 
+    <!-- Home screen -->
+    <div id="home-screen" class="hidden">
+      <div class="home-container">
+        <div class="home-icon">🧁</div>
+        <h1 class="home-title">Заказ у поставщиков</h1>
+        <div class="home-menu">
+          <button id="order-flow-btn" class="home-btn">Сделать заказ</button>
+          <button id="info-flow-btn" class="home-btn home-btn-info">О десертах</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location selection -->
+    <div id="location-screen" class="hidden fullscreen-panel">
+      <div class="panel-header">
+        <button id="loc-back-btn">← Назад</button>
+        <h2>Выберите точку</h2>
+      </div>
+      <div id="location-list"></div>
+      <div class="bottom-actions">
+        <button id="loc-confirm-btn" class="btn-primary" disabled>Далее →</button>
+      </div>
+    </div>
+
+    <!-- Catalog -->
     <div id="main" class="hidden">
       <header>
-        <h1>Каталог заказов</h1>
+        <button id="catalog-home-btn" class="header-back">← Главная</button>
         <div id="cart-badge" class="hidden">
           <span id="cart-count">0</span> позиций
         </div>
       </header>
+      <div id="location-strip" class="location-strip hidden"></div>
 
       <div id="search-bar">
         <input type="text" id="search-input" placeholder="Поиск товара..." />
       </div>
 
       <div id="category-tabs"></div>
-
       <div id="catalog"></div>
     </div>
 
-    <div id="cart-panel" class="hidden">
+    <!-- Cart panel -->
+    <div id="cart-panel" class="hidden fullscreen-panel">
       <div class="panel-header">
         <button id="back-btn">← Назад</button>
         <h2>Ваша заявка</h2>
@@ -43,24 +71,40 @@
       </div>
     </div>
 
-    <div id="order-panel" class="hidden">
+    <!-- Order panel -->
+    <div id="order-panel" class="hidden fullscreen-panel">
       <div class="panel-header">
         <button id="order-back-btn">← Назад</button>
         <h2>Отправка заявок</h2>
       </div>
-      <p class="order-hint">Нажмите на каждого поставщика — откроется WhatsApp с готовым сообщением.</p>
+      <p class="order-hint">Нажмите на поставщика — откроется WhatsApp с готовым сообщением.</p>
       <div id="order-list"></div>
-      <div class="order-done">
+      <div class="bottom-actions">
         <button id="done-btn" class="btn-primary">Готово ✓</button>
       </div>
     </div>
 
+    <!-- Info screen -->
+    <div id="info-screen" class="hidden fullscreen-panel">
+      <div class="panel-header">
+        <button id="info-back-btn">← Назад</button>
+        <h2>О десертах</h2>
+      </div>
+      <div class="search-bar-inner">
+        <input type="text" id="info-search-input" placeholder="Поиск..." />
+      </div>
+      <div id="info-category-tabs"></div>
+      <div id="info-catalog"></div>
+    </div>
+
+    <!-- Error -->
     <div id="error-screen" class="hidden">
       <div class="error-box">
         <p>⚠️ Ошибка загрузки каталога</p>
         <button onclick="loadCatalog()" class="btn-primary">Повторить</button>
       </div>
     </div>
+
   </div>
 
   <div id="fab" class="hidden">
