@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { getSuppliers, getProducts, getLocations, saveOrder, clearCache } = require('./sheets');
+const { getSuppliers, getProducts, getLocations, getOrders, saveOrder, clearCache } = require('./sheets');
 
 const app = express();
 app.use(cors());
@@ -33,6 +33,17 @@ app.post('/api/orders', async (req, res) => {
   } catch (err) {
     console.error('Order save error:', err.message);
     res.status(500).json({ error: 'Не удалось сохранить заявку' });
+  }
+});
+
+// История заказов из Google Sheets
+app.get('/api/orders', async (req, res) => {
+  try {
+    const orders = await getOrders();
+    res.json({ orders });
+  } catch (err) {
+    console.error('Orders fetch error:', err.message);
+    res.status(500).json({ error: 'Не удалось загрузить историю' });
   }
 });
 

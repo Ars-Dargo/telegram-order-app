@@ -24,6 +24,7 @@
         <div class="home-menu">
           <button id="order-flow-btn" class="home-btn">Сделать заказ</button>
           <button id="info-flow-btn" class="home-btn home-btn-info">О десертах</button>
+          <button id="history-flow-btn" class="home-btn home-btn-history">История заказов</button>
         </div>
       </div>
     </div>
@@ -77,7 +78,7 @@
         <button id="order-back-btn">← Назад</button>
         <h2>Отправка заявок</h2>
       </div>
-      <p class="order-hint">Нажмите на поставщика — откроется WhatsApp с готовым сообщением.</p>
+      <p class="order-hint">Нажмите на поставщика — откроется WhatsApp.</p>
       <div id="order-list"></div>
       <div class="bottom-actions">
         <button id="done-btn" class="btn-primary">Готово ✓</button>
@@ -97,6 +98,18 @@
       <div id="info-catalog"></div>
     </div>
 
+    <!-- History screen -->
+    <div id="history-screen" class="hidden fullscreen-panel">
+      <div class="panel-header">
+        <button id="history-back-btn">← Назад</button>
+        <h2>История заказов</h2>
+      </div>
+      <div id="history-loading" class="hidden">
+        <div class="spinner" style="margin:40px auto"></div>
+      </div>
+      <div id="history-list"></div>
+    </div>
+
     <!-- Error -->
     <div id="error-screen" class="hidden">
       <div class="error-box">
@@ -107,11 +120,15 @@
 
   </div>
 
+  <!-- FAB -->
   <div id="fab" class="hidden">
     <button id="fab-btn" onclick="openCart()">
       🛒 <span id="fab-count">0</span>
     </button>
   </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
 
   <script src="app.js"></script>
 </body>

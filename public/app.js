@@ -10,6 +10,7 @@ let activeCategory = 'Все';
 let infoActiveCategory = 'Все';
 let sentOrders = new Set();
 let selectedLocation = null;
+let currentSupplierOrders = [];
 
 // ─── Load ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,73 @@ function showInfoScreen() {
   renderInfoCategoryTabs();
   renderInfoProducts();
   show('info-screen');
+}
+
+async function showHistoryScreen() {
+  hide('home-screen');
+  show('history-screen');
+  show('history-loading');
+  document.getElementById('history-list').innerHTML = '';
+
+  try {
+    const res = await fetch('/api/orders');
+    if (!res.ok) throw new Error();
+    const { orders } = await res.json();
+    hide('history-loading');
+    renderHistoryScreen(orders);
+  } catch (e) {
+    hide('history-loading');
+    document.getElementById('history-list').innerHTML =
+      '<div class="empty-state">Не удалось загрузить историю</div>';
+  }
+}
+
+function renderHistoryScreen(orders) {
+  const container = document.getElementById('history-list');
+
+  if (!orders || orders.length === 0) {
+    container.innerHTML = '<div class="empty-state">Заказов пока нет</div>';
+    return;
+  }
+
+  // Group rows by order_id
+  const grouped = {};
+  const orderedIds = [];
+  orders.forEach(row => {
+    if (!row.order_id) return;
+    if (!grouped[row.order_id]) {
+      grouped[row.order_id] = {
+        date: row.date,
+        location: row.location,
+        user_name: row.user_name,
+        suppliers: [],
+      };
+      orderedIds.push(row.order_id);
+    }
+    grouped[row.order_id].suppliers.push({
+      name: row.supplier_name,
+      items: row.items,
+    });
+  });
+
+  container.innerHTML = orderedIds.map(id => {
+    const o = grouped[id];
+    return `
+      <div class="history-card">
+        <div class="history-meta">
+          <span class="history-date">${escHtml(o.date)}</span>
+          ${o.user_name ? `<span class="history-user">${escHtml(o.user_name)}</span>` : ''}
+        </div>
+        ${o.location ? `<div class="history-location">📍 ${escHtml(o.location)}</div>` : ''}
+        ${o.suppliers.map(s => `
+          <div class="history-supplier">
+            <div class="history-supplier-name">${escHtml(s.name)}</div>
+            <div class="history-items">${escHtml(s.items)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
 }
 
 // ─── Location screen ───────────────────────────────────────────────────────
@@ -122,7 +190,6 @@ function setCategory(cat) {
 function renderProducts() {
   const search = document.getElementById('search-input')?.value.toLowerCase() || '';
   const container = document.getElementById('catalog');
-
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
 
@@ -194,7 +261,6 @@ function setInfoCategory(cat) {
 function renderInfoProducts() {
   const search = document.getElementById('info-search-input')?.value.toLowerCase() || '';
   const container = document.getElementById('info-catalog');
-
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
 
@@ -223,7 +289,7 @@ function renderInfoProducts() {
     return `
       <div class="supplier-section">
         ${supplier ? `<div class="supplier-title">${escHtml(supplier.name)}</div>` : ''}
-        ${products.map(p => renderInfoCard(p, supplierMap)).join('')}
+        ${products.map(p => renderInfoCard(p)).join('')}
       </div>
     `;
   }).join('');
@@ -356,7 +422,7 @@ async function sendOrders() {
     grouped[sid].push({ ...p, quantity: qty });
   });
 
-  const supplierOrders = Object.entries(grouped).map(([sid, items]) => {
+  currentSupplierOrders = Object.entries(grouped).map(([sid, items]) => {
     const supplier = supplierMap[sid];
     return {
       supplierId: sid,
@@ -379,7 +445,7 @@ async function sendOrders() {
         userId: userData?.id || 'unknown',
         userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
         location: locationStr,
-        supplierOrders,
+        supplierOrders: currentSupplierOrders,
       }),
     });
   } catch (e) {
@@ -387,7 +453,7 @@ async function sendOrders() {
   }
 
   sentOrders.clear();
-  renderOrderPanel(supplierOrders);
+  renderOrderPanel(currentSupplierOrders);
   hide('cart-panel');
   show('order-panel');
 }
@@ -400,22 +466,45 @@ function renderOrderPanel(supplierOrders) {
     : '';
 
   container.innerHTML = locBadge + supplierOrders.map((so, idx) => {
+    const isGroup = so.whatsapp && so.whatsapp.startsWith('https://chat.whatsapp.com/');
     const msgText = buildWhatsAppMessage(so);
-    const waUrl = so.whatsapp
-      ? `https://wa.me/${cleanPhone(so.whatsapp)}?text=${encodeURIComponent(msgText)}`
-      : `https://wa.me/?text=${encodeURIComponent(msgText)}`;
+
+    let href;
+    if (isGroup) {
+      href = so.whatsapp;
+    } else if (so.whatsapp) {
+      href = `https://wa.me/${cleanPhone(so.whatsapp)}?text=${encodeURIComponent(msgText)}`;
+    } else {
+      href = `https://wa.me/?text=${encodeURIComponent(msgText)}`;
+    }
 
     return `
-      <a href="${waUrl}" target="_blank" class="order-supplier-card" id="order-card-${idx}"
-         onclick="markSent(${idx})">
+      <a href="${escHtml(href)}" target="_blank" class="order-supplier-card" id="order-card-${idx}"
+         onclick="handleOrderClick(event, ${idx}, ${isGroup})">
         <div class="order-supplier-info">
           <div class="order-supplier-name">${escHtml(so.supplierName)}</div>
-          <div class="order-supplier-summary">${so.items.length} позиций</div>
+          <div class="order-supplier-summary">${so.items.length} позиций${isGroup ? ' · группа' : ''}</div>
         </div>
         <div class="wa-icon">💬</div>
       </a>
     `;
   }).join('');
+}
+
+async function handleOrderClick(event, idx, isGroup) {
+  if (isGroup) {
+    event.preventDefault();
+    const so = currentSupplierOrders[idx];
+    const msgText = buildWhatsAppMessage(so);
+    try {
+      await navigator.clipboard.writeText(msgText);
+      showToast('Сообщение скопировано — вставьте в группу');
+    } catch (e) {
+      showToast('Откройте группу и вставьте заявку вручную');
+    }
+    setTimeout(() => window.open(so.whatsapp, '_blank'), 400);
+  }
+  markSent(idx);
 }
 
 function buildWhatsAppMessage(supplierOrder) {
@@ -445,6 +534,15 @@ function cleanPhone(phone) {
   return phone.replace(/\D/g, '');
 }
 
+// ─── Toast ─────────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 2800);
+}
+
 // ─── Navigation ────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -452,6 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('order-flow-btn').onclick = showOrderFlow;
   document.getElementById('info-flow-btn').onclick = showInfoScreen;
+  document.getElementById('history-flow-btn').onclick = showHistoryScreen;
 
   document.getElementById('loc-back-btn').onclick = () => {
     hide('location-screen');
@@ -494,6 +593,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('info-back-btn').onclick = () => {
     hide('info-screen');
+    show('home-screen');
+  };
+
+  document.getElementById('history-back-btn').onclick = () => {
+    hide('history-screen');
     show('home-screen');
   };
 

@@ -92,8 +92,30 @@ async function saveOrder(order) {
   }
 }
 
+async function getOrders() {
+  const auth = await getAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.SPREADSHEET_ID,
+    range: 'Orders!A1:H500',
+  });
+
+  const rows = response.data.values;
+  if (!rows || rows.length < 2) return [];
+
+  const headers = rows[0].map(h => h.trim());
+  return rows.slice(1)
+    .reverse()
+    .slice(0, 150)
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i] || ''; });
+      return obj;
+    });
+}
+
 function clearCache() {
   cache.flushAll();
 }
 
-module.exports = { getSuppliers, getProducts, getLocations, saveOrder, clearCache };
+module.exports = { getSuppliers, getProducts, getLocations, getOrders, saveOrder, clearCache };
