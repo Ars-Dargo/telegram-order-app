@@ -490,6 +490,7 @@ async function sendOrders() {
     return {
       supplierId: sid,
       supplierName: supplier?.name || 'Поставщик',
+      telegramChatId: supplier?.telegram_chat_id || null,
       items: items.map(i => ({ id: i.id, name: i.name, quantity: i.quantity, unit: i.unit || 'шт' })),
     };
   });
@@ -511,7 +512,7 @@ async function sendOrders() {
         userId: userData?.id || 'unknown',
         userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
         location: locationStr,
-        telegramChatId: selectedLocation?.telegram_chat_id || null,
+
         supplierOrders: currentSupplierOrders,
       }),
     });

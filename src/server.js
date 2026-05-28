@@ -53,21 +53,20 @@ app.post('/api/orders', async (req, res) => {
     order.orderId = `ORD-${Date.now()}`;
     await saveOrder(order);
 
-    if (order.telegramChatId) {
-      const now = new Date().toLocaleString('ru-RU', {
-        timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit',
-        year: 'numeric', hour: '2-digit', minute: '2-digit',
-      });
+    const now = new Date().toLocaleString('ru-RU', {
+      timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit',
+      year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    for (const so of order.supplierOrders) {
+      if (!so.telegramChatId) continue;
       let text = `📦 <b>Новая заявка</b> | ${now}\n`;
       if (order.location) text += `📍 ${order.location}\n`;
       if (order.userName && order.userName !== 'unknown') text += `👤 ${order.userName}\n`;
-      for (const so of order.supplierOrders) {
-        text += `\n🏭 <b>${so.supplierName}</b>:\n`;
-        for (const item of so.items) {
-          text += `• ${item.name} — ${item.quantity} ${item.unit}\n`;
-        }
+      text += '\n';
+      for (const item of so.items) {
+        text += `• ${item.name} — ${item.quantity} ${item.unit}\n`;
       }
-      await sendTelegramMessage(order.telegramChatId, text);
+      await sendTelegramMessage(so.telegramChatId, text);
     }
 
     res.json({ ok: true, orderId: order.orderId });
