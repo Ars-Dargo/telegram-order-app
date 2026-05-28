@@ -490,7 +490,6 @@ async function sendOrders() {
     return {
       supplierId: sid,
       supplierName: supplier?.name || 'Поставщик',
-      whatsapp: supplier?.whatsapp || '',
       items: items.map(i => ({ id: i.id, name: i.name, quantity: i.quantity, unit: i.unit || 'шт' })),
     };
   });
@@ -499,90 +498,51 @@ async function sendOrders() {
     ? `${selectedLocation.name}${selectedLocation.address ? ', ' + selectedLocation.address : ''}`
     : '';
 
+  const sendBtn = document.getElementById('send-orders-btn');
+  sendBtn.disabled = true;
+  sendBtn.textContent = 'Отправляем...';
+
   try {
     const userData = tg?.initDataUnsafe?.user;
-    await fetch('/api/orders', {
+    const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: userData?.id || 'unknown',
         userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
         location: locationStr,
+        telegramChatId: selectedLocation?.telegram_chat_id || null,
         supplierOrders: currentSupplierOrders,
       }),
     });
-  } catch (e) {
-    // Продолжаем даже если сохранение не удалось
-  }
+    if (!res.ok) throw new Error();
 
-  sentOrders.clear();
-  renderOrderPanel(currentSupplierOrders);
-  hide('cart-panel');
-  show('order-panel');
+    renderOrderConfirmation(currentSupplierOrders);
+    hide('cart-panel');
+    show('order-panel');
+  } catch (e) {
+    showToast('Ошибка отправки — попробуйте ещё раз');
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Отправить поставщикам';
+  }
 }
 
-function renderOrderPanel(supplierOrders) {
-  const container = document.getElementById('order-list');
+function renderOrderConfirmation(supplierOrders) {
+  document.querySelector('#order-panel .panel-header h2').textContent = 'Заявка отправлена ✓';
 
+  const container = document.getElementById('order-list');
   const locBadge = selectedLocation
     ? `<div class="order-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.address ? ' — ' + escHtml(selectedLocation.address) : ''}</div>`
     : '';
 
-  container.innerHTML = locBadge + supplierOrders.map((so, idx) => {
-    const isGroup = so.whatsapp && so.whatsapp.startsWith('https://chat.whatsapp.com/');
-    const msgText = buildWhatsAppMessage(so);
-
-    let href;
-    if (isGroup) {
-      href = so.whatsapp;
-    } else if (so.whatsapp) {
-      href = `https://wa.me/${cleanPhone(so.whatsapp)}?text=${encodeURIComponent(msgText)}`;
-    } else {
-      href = `https://wa.me/?text=${encodeURIComponent(msgText)}`;
-    }
-
-    return `
-      <a href="${escHtml(href)}" target="_blank" class="order-supplier-card" id="order-card-${idx}"
-         onclick="handleOrderClick(event, ${idx}, ${isGroup})">
-        <div class="order-supplier-info">
-          <div class="order-supplier-name">${escHtml(so.supplierName)}</div>
-          <div class="order-supplier-summary">${so.items.length} позиций${isGroup ? ' · группа' : ''}</div>
-        </div>
-        <div class="wa-icon">💬</div>
-      </a>
-    `;
-  }).join('');
-}
-
-async function handleOrderClick(event, idx, isGroup) {
-  if (isGroup) {
-    event.preventDefault();
-    const so = currentSupplierOrders[idx];
-    const msgText = buildWhatsAppMessage(so);
-    try {
-      await navigator.clipboard.writeText(msgText);
-      showToast('Сообщение скопировано — вставьте в группу');
-    } catch (e) {
-      showToast('Откройте группу и вставьте заявку вручную');
-    }
-    setTimeout(() => window.open(so.whatsapp, '_blank'), 400);
-  }
-  markSent(idx);
-}
-
-function buildWhatsAppMessage(supplierOrder) {
-  const date = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  let msg = `Заявка от ${date}\n`;
-  if (selectedLocation) {
-    msg += `Точка: ${selectedLocation.name}`;
-    if (selectedLocation.address) msg += `, ${selectedLocation.address}`;
-    msg += '\n';
-  }
-  msg += '\n';
-  supplierOrder.items.forEach(item => {
-    msg += `• ${item.name} — ${item.quantity} ${item.unit}\n`;
-  });
-  return msg;
+  container.innerHTML = `<div class="sent-confirmation"><div class="sent-check">✅</div><div class="sent-text">Заявка отправлена в Telegram-группу</div></div>` +
+    locBadge +
+    supplierOrders.map(so => `
+      <div class="order-summary-card">
+        <div class="order-supplier-name">${escHtml(so.supplierName)}</div>
+        <div class="order-items-text">${so.items.map(i => `• ${escHtml(i.name)} — ${i.quantity} ${escHtml(i.unit)}`).join('<br>')}</div>
+      </div>
+    `).join('');
 }
 
 function markSent(idx) {
@@ -750,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('done-btn').onclick = () => {
     clearCart();
     hide('order-panel');
+    document.querySelector('#order-panel .panel-header h2').textContent = 'Заявка';
     show('home-screen');
   };
 

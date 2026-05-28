@@ -2,7 +2,30 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const https = require('https');
 const { getSuppliers, getProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache } = require('./sheets');
+
+function sendTelegramMessage(chatId, text) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+    const req = https.request({
+      hostname: 'api.telegram.org',
+      path: `/bot${process.env.BOT_TOKEN}/sendMessage`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    }, res => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        const json = JSON.parse(data);
+        if (json.ok) resolve(json); else reject(new Error(json.description));
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 const app = express();
 app.use(cors());
@@ -20,7 +43,7 @@ app.get('/api/catalog', async (req, res) => {
   }
 });
 
-// Сохраняем заявку в лист Orders
+// Сохраняем заявку в лист Orders и отправляем в Telegram
 app.post('/api/orders', async (req, res) => {
   try {
     const order = req.body;
@@ -29,10 +52,28 @@ app.post('/api/orders', async (req, res) => {
     }
     order.orderId = `ORD-${Date.now()}`;
     await saveOrder(order);
+
+    if (order.telegramChatId) {
+      const now = new Date().toLocaleString('ru-RU', {
+        timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit',
+        year: 'numeric', hour: '2-digit', minute: '2-digit',
+      });
+      let text = `📦 <b>Новая заявка</b> | ${now}\n`;
+      if (order.location) text += `📍 ${order.location}\n`;
+      if (order.userName && order.userName !== 'unknown') text += `👤 ${order.userName}\n`;
+      for (const so of order.supplierOrders) {
+        text += `\n🏭 <b>${so.supplierName}</b>:\n`;
+        for (const item of so.items) {
+          text += `• ${item.name} — ${item.quantity} ${item.unit}\n`;
+        }
+      }
+      await sendTelegramMessage(order.telegramChatId, text);
+    }
+
     res.json({ ok: true, orderId: order.orderId });
   } catch (err) {
-    console.error('Order save error:', err.message);
-    res.status(500).json({ error: 'Не удалось сохранить заявку' });
+    console.error('Order error:', err.message);
+    res.status(500).json({ error: 'Не удалось отправить заявку' });
   }
 });
 
