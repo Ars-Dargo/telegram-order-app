@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const https = require('https');
-const { getSuppliers, getProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache } = require('./sheets');
+const { getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache } = require('./sheets');
 
 function sendTelegramMessage(chatId, text) {
   return new Promise((resolve, reject) => {
@@ -35,8 +35,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Отдаём все продукты и поставщиков за один запрос
 app.get('/api/catalog', async (req, res) => {
   try {
-    const [suppliers, products, locations] = await Promise.all([getSuppliers(), getProducts(), getLocations()]);
-    res.json({ suppliers, products, locations });
+    const [suppliers, products, foodProducts, locations] = await Promise.all([getSuppliers(), getProducts(), getFoodProducts(), getLocations()]);
+    res.json({ suppliers, products, foodProducts, locations });
   } catch (err) {
     console.error('Catalog error:', err.message);
     res.status(500).json({ error: 'Не удалось загрузить каталог' });

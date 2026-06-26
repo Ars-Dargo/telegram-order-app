@@ -4,8 +4,9 @@ if (tg) {
   tg.expand();
 }
 
-let catalog = { suppliers: [], products: [], locations: [] };
+let catalog = { suppliers: [], products: [], foodProducts: [], locations: [] };
 let cart = {};
+let currentOrderMode = 'desserts';
 let activeCategory = 'Все';
 let infoActiveCategory = 'Все';
 let sentOrders = new Set();
@@ -46,9 +47,19 @@ async function loadCatalog() {
   }
 }
 
+function activeProducts() {
+  return currentOrderMode === 'food' ? catalog.foodProducts : catalog.products;
+}
+
 // ─── Home screen ───────────────────────────────────────────────────────────
 
-function showOrderFlow() {
+function showOrderFlow(mode) {
+  currentOrderMode = mode || 'desserts';
+  cart = {};
+  updateCartUI();
+  activeCategory = 'Все';
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) searchInput.value = '';
   hide('home-screen');
   renderLocationScreen();
   show('location-screen');
@@ -136,15 +147,15 @@ function reorderFromHistory(orderId) {
   if (!order) return;
 
   cart = {};
-  catalog.products.forEach(p => {
-    const el = document.getElementById(`qty-${p.id}`);
-    if (el) el.textContent = '0';
-  });
 
   const nameMap = {};
-  catalog.products.forEach(p => { nameMap[p.name.toLowerCase()] = p; });
+  const foodIds = new Set(catalog.foodProducts.map(p => p.id));
+  [...catalog.products, ...(catalog.foodProducts || [])].forEach(p => {
+    nameMap[p.name.toLowerCase()] = p;
+  });
 
   let restored = 0;
+  let foodMatches = 0;
   order.suppliers.forEach(s => {
     (s.items || '').split('; ').forEach(itemStr => {
       const match = itemStr.match(/^(.+) x(\d+)/);
@@ -153,6 +164,7 @@ function reorderFromHistory(orderId) {
       const qty = parseInt(match[2]);
       if (product && qty > 0) {
         cart[product.id] = qty;
+        if (foodIds.has(product.id)) foodMatches++;
         restored++;
       }
     });
@@ -163,6 +175,10 @@ function reorderFromHistory(orderId) {
     return;
   }
 
+  currentOrderMode = foodMatches > restored / 2 ? 'food' : 'desserts';
+  const lbl = document.getElementById('catalog-mode-label');
+  if (lbl) lbl.textContent = currentOrderMode === 'food' ? 'Заказ еды' : 'Заказ десертов';
+
   if (order.location) {
     const loc = catalog.locations.find(l => order.location.startsWith(l.name));
     if (loc) selectedLocation = loc;
@@ -171,6 +187,7 @@ function reorderFromHistory(orderId) {
   hide('history-screen');
   updateLocationStrip();
   updateCartUI();
+  renderCatalog();
   show('main');
   if (Object.keys(cart).length > 0) show('fab');
   showToast(`Восстановлено ${restored} позиций`);
@@ -212,6 +229,9 @@ function selectLocation(locId) {
 function confirmLocation() {
   hide('location-screen');
   updateLocationStrip();
+  const lbl = document.getElementById('catalog-mode-label');
+  if (lbl) lbl.textContent = currentOrderMode === 'food' ? 'Заказ еды' : 'Заказ десертов';
+  renderCatalog();
   show('main');
   if (Object.keys(cart).length > 0) show('fab');
 }
@@ -236,7 +256,7 @@ function renderCatalog() {
 }
 
 function renderCategoryTabs() {
-  const categories = ['Все', ...new Set(catalog.products.map(p => p.category).filter(Boolean))];
+  const categories = ['Все', ...new Set(activeProducts().map(p => p.category).filter(Boolean))];
   const container = document.getElementById('category-tabs');
   container.innerHTML = categories.map(cat => `
     <button class="cat-tab ${cat === activeCategory ? 'active' : ''}"
@@ -256,7 +276,7 @@ function renderProducts() {
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
 
-  const filtered = catalog.products.filter(p => {
+  const filtered = activeProducts().filter(p => {
     const matchCat = activeCategory === 'Все' || p.category === activeCategory;
     const matchSearch = !search || p.name.toLowerCase().includes(search);
     return matchCat && matchSearch;
@@ -414,7 +434,7 @@ function renderCartPanel() {
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
   const productMap = {};
-  catalog.products.forEach(p => { productMap[p.id] = p; });
+  activeProducts().forEach(p => { productMap[p.id] = p; });
 
   const grouped = {};
   Object.entries(cart).forEach(([pid, qty]) => {
@@ -461,7 +481,7 @@ function removeFromCart(productId) {
 
 function clearCart() {
   cart = {};
-  catalog.products.forEach(p => {
+  activeProducts().forEach(p => {
     const el = document.getElementById(`qty-${p.id}`);
     if (el) el.textContent = '0';
   });
@@ -474,7 +494,7 @@ async function sendOrders() {
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
   const productMap = {};
-  catalog.products.forEach(p => { productMap[p.id] = p; });
+  activeProducts().forEach(p => { productMap[p.id] = p; });
 
   const grouped = {};
   Object.entries(cart).forEach(([pid, qty]) => {
@@ -670,7 +690,8 @@ function showToast(msg) {
 document.addEventListener('DOMContentLoaded', () => {
   loadCatalog();
 
-  document.getElementById('order-flow-btn').onclick = showOrderFlow;
+  document.getElementById('food-order-btn').onclick = () => showOrderFlow('food');
+  document.getElementById('order-flow-btn').onclick = () => showOrderFlow('desserts');
   document.getElementById('info-flow-btn').onclick = showInfoScreen;
   document.getElementById('history-flow-btn').onclick = showHistoryScreen;
   document.getElementById('checklist-flow-btn').onclick = showChecklistScreen;

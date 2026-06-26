@@ -40,7 +40,25 @@
       <!-- Menu buttons with mascots -->
       <div class="home-menu">
 
-        <!-- Крокодил — Сделать заказ -->
+        <!-- Курица — Заказ еды -->
+        <button id="food-order-btn" class="home-btn">
+          <span class="home-btn-mascot">
+            <svg viewBox="0 0 44 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="5" r="3.5"/>
+              <circle cx="14" cy="3" r="3.5"/>
+              <circle cx="20" cy="5" r="3.5"/>
+              <circle cx="14" cy="13" r="8"/>
+              <ellipse cx="30" cy="19" rx="15" ry="11"/>
+              <ellipse cx="43" cy="13" rx="5" ry="7" transform="rotate(20 43 13)"/>
+              <circle cx="11" cy="11" r="2" fill="white"/>
+              <ellipse cx="23" cy="28" rx="4" ry="3"/>
+              <ellipse cx="35" cy="28" rx="4" ry="3"/>
+            </svg>
+          </span>
+          <span class="home-btn-label">Заказ еды</span>
+        </button>
+
+        <!-- Крокодил — Заказ десертов -->
         <button id="order-flow-btn" class="home-btn">
           <span class="home-btn-mascot">
             <svg viewBox="0 0 44 26" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -53,7 +71,7 @@
               <circle cx="5" cy="10" r="1.8" fill="white"/>
             </svg>
           </span>
-          <span class="home-btn-label">Сделать заказ</span>
+          <span class="home-btn-label">Заказ десертов</span>
         </button>
 
         <!-- Панголин — О десертах -->
@@ -125,6 +143,7 @@
     <div id="main" class="hidden">
       <header>
         <button id="catalog-home-btn" class="header-back">← Главная</button>
+        <span id="catalog-mode-label" style="font-size:15px;font-weight:600;flex:1;text-align:center;margin:0 8px"></span>
         <div id="cart-badge" class="hidden">
           <span id="cart-count">0</span> позиций
         </div>

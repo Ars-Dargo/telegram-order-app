@@ -61,6 +61,11 @@ async function getLocations() {
   return rows.filter(r => r.id && r.name);
 }
 
+async function getFoodProducts() {
+  const rows = await getSheetData('Еда');
+  return rows.filter(r => r.id && r.name && r.available?.toUpperCase() !== 'FALSE');
+}
+
 async function saveOrder(order) {
   const auth = await getAuth();
   const sheets = google.sheets({ version: 'v4', auth });
@@ -291,4 +296,4 @@ function clearCache() {
   cache.flushAll();
 }
 
-module.exports = { getSuppliers, getProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache };
+module.exports = { getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache };
