@@ -7,6 +7,7 @@ if (tg) {
 let catalog = { suppliers: [], products: [], foodProducts: [], locations: [] };
 let cart = {};
 let currentOrderMode = 'desserts';
+let infoMode = 'desserts';
 let activeCategory = 'Все';
 let infoActiveCategory = 'Все';
 let sentOrders = new Set();
@@ -65,9 +66,18 @@ function showOrderFlow(mode) {
   show('location-screen');
 }
 
-function showInfoScreen() {
+function activeInfoProducts() {
+  return infoMode === 'food' ? catalog.foodProducts : catalog.products;
+}
+
+function showInfoScreen(mode) {
+  infoMode = mode || 'desserts';
   hide('home-screen');
   infoActiveCategory = 'Все';
+  const title = document.getElementById('info-screen-title');
+  if (title) title.textContent = infoMode === 'food' ? 'О еде' : 'О десертах';
+  const searchInput = document.getElementById('info-search-input');
+  if (searchInput) searchInput.value = '';
   renderInfoCategoryTabs();
   renderInfoProducts();
   show('info-screen');
@@ -327,7 +337,7 @@ function renderProductCard(p) {
 // ─── Info screen ───────────────────────────────────────────────────────────
 
 function renderInfoCategoryTabs() {
-  const categories = ['Все', ...new Set(catalog.products.map(p => p.category).filter(Boolean))];
+  const categories = ['Все', ...new Set(activeInfoProducts().map(p => p.category).filter(Boolean))];
   const container = document.getElementById('info-category-tabs');
   container.innerHTML = categories.map(cat => `
     <button class="cat-tab ${cat === infoActiveCategory ? 'active' : ''}"
@@ -347,7 +357,7 @@ function renderInfoProducts() {
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
 
-  const filtered = catalog.products.filter(p => {
+  const filtered = activeInfoProducts().filter(p => {
     const matchCat = infoActiveCategory === 'Все' || p.category === infoActiveCategory;
     const matchSearch = !search ||
       p.name.toLowerCase().includes(search) ||
@@ -380,15 +390,18 @@ function renderInfoProducts() {
 
 function renderInfoCard(p) {
   const priceStr = p.price ? `${p.price} ₽` : '';
+  // description хранится как "состав | Срок: X | условия хранения"
+  const parts = (p.description || '').split('|').map(s => s.trim()).filter(Boolean);
+  const состав  = parts[0] || '';
+  const storage = parts.slice(1).join(' · ');
   return `
     <div class="info-card">
       <div class="info-card-header">
         <div class="info-card-name">${escHtml(p.name)}</div>
         ${priceStr ? `<div class="info-card-price">${escHtml(priceStr)}</div>` : ''}
       </div>
-      ${p.category ? `<div class="info-card-category">${escHtml(p.category)}</div>` : ''}
-      ${p.description ? `<div class="info-card-desc">${escHtml(p.description)}</div>` : ''}
-      ${p.storage ? `<div class="info-card-storage">🌡 ${escHtml(p.storage)}</div>` : ''}
+      ${состав ? `<div class="info-card-desc">${escHtml(состав)}</div>` : ''}
+      ${storage ? `<div class="info-card-storage">🌡 ${escHtml(storage)}</div>` : ''}
     </div>
   `;
 }
@@ -692,7 +705,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('food-order-btn').onclick = () => showOrderFlow('food');
   document.getElementById('order-flow-btn').onclick = () => showOrderFlow('desserts');
-  document.getElementById('info-flow-btn').onclick = showInfoScreen;
+  document.getElementById('info-flow-btn').onclick = () => showInfoScreen('desserts');
+  document.getElementById('food-info-btn').onclick = () => showInfoScreen('food');
   document.getElementById('history-flow-btn').onclick = showHistoryScreen;
   document.getElementById('checklist-flow-btn').onclick = showChecklistScreen;
 
