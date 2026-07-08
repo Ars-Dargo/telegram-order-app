@@ -758,6 +758,13 @@ header {
   text-align: center;
 }
 
+.sent-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--orange);
+  text-align: center;
+}
+
 .order-summary-card {
   background: var(--secondary-bg);
   border-radius: var(--radius);
@@ -796,4 +803,68 @@ header {
 #toast.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ─── Order type modal ─────────────────────────────────────────────────────── */
+
+#order-type-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#order-type-modal.hidden { display: none; }
+
+.modal-box {
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 32px;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.modal-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.modal-btn:active { opacity: 0.8; }
+
+.modal-btn-tomorrow {
+  background: var(--btn);
+  color: var(--btn-text);
+}
+
+.modal-btn-today {
+  background: var(--secondary-bg);
+  color: var(--text);
+}
+
+.modal-btn-cancel {
+  background: transparent;
+  color: var(--hint);
+  font-size: 15px;
+  font-weight: 400;
+  padding: 10px;
 }

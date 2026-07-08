@@ -36,7 +36,7 @@ async function loadCatalog() {
   show('loading'); hide('error-screen'); hide('home-screen');
 
   try {
-    const res = await fetch('/api/catalog');
+    const res = await fetch(`/api/catalog?t=${Date.now()}`);
     if (!res.ok) throw new Error('Network error');
     catalog = await res.json();
     renderCatalog();
@@ -440,6 +440,9 @@ function updateCartUI() {
 function openCart() {
   renderCartPanel();
   hide('main'); hide('fab');
+  // Всегда сбрасываем кнопку при открытии корзины
+  const sendBtn = document.getElementById('send-orders-btn');
+  if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Отправить поставщикам'; }
   show('cart-panel');
 }
 
@@ -447,7 +450,7 @@ function renderCartPanel() {
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
   const productMap = {};
-  activeProducts().forEach(p => { productMap[p.id] = p; });
+  [...catalog.products, ...(catalog.foodProducts || [])].forEach(p => { productMap[p.id] = p; });
 
   const grouped = {};
   Object.entries(cart).forEach(([pid, qty]) => {
@@ -503,11 +506,11 @@ function clearCart() {
 
 // ─── Order sending ─────────────────────────────────────────────────────────
 
-async function sendOrders() {
+function sendOrders() {
   const supplierMap = {};
   catalog.suppliers.forEach(s => { supplierMap[s.id] = s; });
   const productMap = {};
-  activeProducts().forEach(p => { productMap[p.id] = p; });
+  [...catalog.products, ...(catalog.foodProducts || [])].forEach(p => { productMap[p.id] = p; });
 
   const grouped = {};
   Object.entries(cart).forEach(([pid, qty]) => {
@@ -528,6 +531,21 @@ async function sendOrders() {
     };
   });
 
+  if (!currentSupplierOrders.length) {
+    showToast('Корзина пуста — добавьте товары');
+    return;
+  }
+
+  show('order-type-modal');
+}
+
+function cancelOrderType() {
+  hide('order-type-modal');
+}
+
+async function confirmOrderType(type) {
+  hide('order-type-modal');
+
   const locationStr = selectedLocation
     ? `${selectedLocation.name}${selectedLocation.address ? ', ' + selectedLocation.address : ''}`
     : '';
@@ -545,31 +563,36 @@ async function sendOrders() {
         userId: userData?.id || 'unknown',
         userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
         location: locationStr,
-
+        orderType: type,
         supplierOrders: currentSupplierOrders,
       }),
     });
-    if (!res.ok) throw new Error();
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Ошибка ${res.status}`);
+    }
 
-    renderOrderConfirmation(currentSupplierOrders);
+    renderOrderConfirmation(currentSupplierOrders, type);
     hide('cart-panel');
     show('order-panel');
   } catch (e) {
-    showToast('Ошибка отправки — попробуйте ещё раз');
+    showToast(e.message || 'Ошибка отправки — попробуйте ещё раз');
     sendBtn.disabled = false;
     sendBtn.textContent = 'Отправить поставщикам';
   }
 }
 
-function renderOrderConfirmation(supplierOrders) {
+function renderOrderConfirmation(supplierOrders, orderType) {
   document.querySelector('#order-panel .panel-header h2').textContent = 'Заявка отправлена ✓';
+
+  const typeLabel = orderType === 'today' ? '➕ Доп. заявка на сегодня' : '📅 Заявка на завтра';
 
   const container = document.getElementById('order-list');
   const locBadge = selectedLocation
     ? `<div class="order-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.address ? ' — ' + escHtml(selectedLocation.address) : ''}</div>`
     : '';
 
-  container.innerHTML = `<div class="sent-confirmation"><div class="sent-check">✅</div><div class="sent-text">Заявка отправлена в Telegram-группу</div></div>` +
+  container.innerHTML = `<div class="sent-confirmation"><div class="sent-check">✅</div><div class="sent-text">Заявка отправлена в Telegram-группу</div><div class="sent-type">${escHtml(typeLabel)}</div></div>` +
     locBadge +
     supplierOrders.map(so => `
       <div class="order-summary-card">

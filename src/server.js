@@ -36,6 +36,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.get('/api/catalog', async (req, res) => {
   try {
     const [suppliers, products, foodProducts, locations] = await Promise.all([getSuppliers(), getProducts(), getFoodProducts(), getLocations()]);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({ suppliers, products, foodProducts, locations });
   } catch (err) {
     console.error('Catalog error:', err.message);
@@ -57,16 +58,23 @@ app.post('/api/orders', async (req, res) => {
       timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit',
       year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
+    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const orderTypeLabel = order.orderType === 'today' ? '➕ Доп. заявка на сегодня' : '📅 Заявка на завтра';
     for (const so of order.supplierOrders) {
       if (!so.telegramChatId) continue;
       let text = `📦 <b>Новая заявка</b> | ${now}\n`;
-      if (order.location) text += `📍 ${order.location}\n`;
-      if (order.userName && order.userName !== 'unknown') text += `👤 ${order.userName}\n`;
+      text += `${orderTypeLabel}\n`;
+      if (order.location) text += `📍 ${esc(order.location)}\n`;
+      if (order.userName && order.userName !== 'unknown') text += `👤 ${esc(order.userName)}\n`;
       text += '\n';
       for (const item of so.items) {
-        text += `• ${item.name} — ${item.quantity} ${item.unit}\n`;
+        text += `• ${esc(item.name)} — ${item.quantity} ${esc(item.unit)}\n`;
       }
-      await sendTelegramMessage(so.telegramChatId, text);
+      try {
+        await sendTelegramMessage(so.telegramChatId, text);
+      } catch (e) {
+        console.error(`Order notify error [${so.supplierName}]:`, e.message);
+      }
     }
 
     res.json({ ok: true, orderId: order.orderId });
