@@ -52,8 +52,9 @@ async function getSuppliers() {
 }
 
 async function getProducts() {
-  const rows = await getSheetData('Products');
-  return rows.filter(r => r.id && r.name && r.available?.toUpperCase() !== 'FALSE');
+  const [products, suppliers] = await Promise.all([getSheetData('Products'), getSheetData('Suppliers')]);
+  const dessertIds = new Set(suppliers.filter(s => s.type !== 'food').map(s => s.id));
+  return products.filter(r => r.id && r.name && r.available?.toUpperCase() !== 'FALSE' && dessertIds.has(r.supplier_id));
 }
 
 async function getLocations() {
@@ -62,8 +63,9 @@ async function getLocations() {
 }
 
 async function getFoodProducts() {
-  const rows = await getSheetData('Еда');
-  return rows.filter(r => r.id && r.name && r.available?.toUpperCase() !== 'FALSE');
+  const [products, suppliers] = await Promise.all([getSheetData('Products'), getSheetData('Suppliers')]);
+  const foodIds = new Set(suppliers.filter(s => s.type === 'food').map(s => s.id));
+  return products.filter(r => r.id && r.name && r.available?.toUpperCase() !== 'FALSE' && foodIds.has(r.supplier_id));
 }
 
 async function saveOrder(order) {
