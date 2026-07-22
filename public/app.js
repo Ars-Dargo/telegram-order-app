@@ -224,7 +224,7 @@ function renderLocationScreen() {
          onclick="selectLocation('${escHtml(loc.id)}')">
       <div class="location-info">
         <div class="location-name">${escHtml(loc.name)}</div>
-        ${loc.address ? `<div class="location-address">${escHtml(loc.address)}</div>` : ''}
+        ${loc.city ? `<div class="location-address">${escHtml(loc.city)}</div>` : ''}
       </div>
       <div class="location-check">✓</div>
     </div>
@@ -469,7 +469,7 @@ function renderCartPanel() {
   }
 
   const locBadge = selectedLocation
-    ? `<div class="cart-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.address ? ' — ' + escHtml(selectedLocation.address) : ''}</div>`
+    ? `<div class="cart-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.city ? ' — ' + escHtml(selectedLocation.city) : ''}</div>`
     : '';
 
   container.innerHTML = locBadge + Object.entries(grouped).map(([sid, items]) => {
@@ -589,7 +589,7 @@ function renderOrderConfirmation(supplierOrders, orderType) {
 
   const container = document.getElementById('order-list');
   const locBadge = selectedLocation
-    ? `<div class="order-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.address ? ' — ' + escHtml(selectedLocation.address) : ''}</div>`
+    ? `<div class="order-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.city ? ' — ' + escHtml(selectedLocation.city) : ''}</div>`
     : '';
 
   container.innerHTML = `<div class="sent-confirmation"><div class="sent-check">✅</div><div class="sent-text">Заявка отправлена в Telegram-группу</div><div class="sent-type">${escHtml(typeLabel)}</div></div>` +
@@ -636,7 +636,7 @@ function renderChecklistLocationList() {
          onclick="selectChecklistLocation('${escHtml(loc.id)}')">
       <div class="location-info">
         <div class="location-name">${escHtml(loc.name)}</div>
-        ${loc.address ? `<div class="location-address">${escHtml(loc.address)}</div>` : ''}
+        ${loc.city ? `<div class="location-address">${escHtml(loc.city)}</div>` : ''}
       </div>
       <div class="location-check">✓</div>
     </div>
