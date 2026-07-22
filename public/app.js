@@ -547,7 +547,7 @@ async function confirmOrderType(type) {
   hide('order-type-modal');
 
   const locationStr = selectedLocation
-    ? `${selectedLocation.name}${selectedLocation.address ? ', ' + selectedLocation.address : ''}`
+    ? `${selectedLocation.name}${selectedLocation.city ? ', ' + selectedLocation.city : ''}`
     : '';
 
   const sendBtn = document.getElementById('send-orders-btn');
@@ -687,7 +687,7 @@ async function submitChecklist() {
   const items = CHECKLIST_ITEMS.map((name, idx) => ({ name, done: checklistChecked.has(idx) }));
   const userData = tg?.initDataUnsafe?.user;
   const locationStr = checklistLocation
-    ? `${checklistLocation.name}${checklistLocation.address ? ', ' + checklistLocation.address : ''}`
+    ? `${checklistLocation.name}${checklistLocation.city ? ', ' + checklistLocation.city : ''}`
     : '';
 
   try {
