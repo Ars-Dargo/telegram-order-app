@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Fabrista чек/стоп лист</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="styles.css?v=2" />
+  <link rel="stylesheet" href="styles.css?v=3" />
 </head>
 <body>
   <div id="app">
@@ -126,22 +126,6 @@
           <span class="home-btn-label">История заказов</span>
         </button>
 
-        <!-- Зайчик — Открытие смены -->
-        <button id="checklist-flow-btn" class="home-btn home-btn-outline">
-          <span class="home-btn-mascot">
-            <svg viewBox="0 0 44 34" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="14" cy="9" rx="5" ry="12" transform="rotate(-10 14 9)"/>
-              <ellipse cx="22" cy="8" rx="5" ry="12" transform="rotate(8 22 8)"/>
-              <ellipse cx="17" cy="22" rx="10" ry="9"/>
-              <ellipse cx="33" cy="27" rx="12" ry="8" transform="rotate(-5 33 27)"/>
-              <circle cx="43" cy="24" r="5"/>
-              <ellipse cx="20" cy="32" rx="4" ry="5" transform="rotate(-15 20 32)"/>
-              <ellipse cx="35" cy="33" rx="4" ry="5" transform="rotate(15 35 33)"/>
-            </svg>
-          </span>
-          <span class="home-btn-label">Открытие смены ✓</span>
-        </button>
-
       </div>
     </div>
 
@@ -214,20 +198,6 @@
       <div id="info-catalog"></div>
     </div>
 
-    <!-- Checklist screen -->
-    <div id="checklist-screen" class="hidden fullscreen-panel">
-      <div class="panel-header">
-        <button id="checklist-back-btn">← Назад</button>
-        <h2>Открытие смены</h2>
-      </div>
-      <p class="order-hint">Выберите точку:</p>
-      <div id="checklist-location-list" style="padding:0 16px"></div>
-      <p class="order-hint" id="checklist-score-label" style="padding-top:16px"></p>
-      <div id="checklist-items" style="padding:0 16px 100px"></div>
-      <div class="bottom-actions">
-        <button id="checklist-submit-btn" class="btn-primary" disabled>Отправить отчёт</button>
-      </div>
-    </div>
 
     <!-- History screen -->
     <div id="history-screen" class="hidden fullscreen-panel">
@@ -271,6 +241,6 @@
   <!-- Toast -->
   <div id="toast"></div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

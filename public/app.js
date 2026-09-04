@@ -14,21 +14,6 @@ let sentOrders = new Set();
 let selectedLocation = null;
 let currentSupplierOrders = [];
 let historyOrders = {};
-let checklistLocation = null;
-let checklistChecked = new Set();
-
-const CHECKLIST_ITEMS = [
-  'Включить кофемашину и прогреть',
-  'Проверить холодильники с десертами',
-  'Выставить витрину и проверить выкладку',
-  'Проверить дату и состояние позиций',
-  'Пополнить расходники (стаканы, крышки, салфетки)',
-  'Проверить наличие молока, сливок, сиропов',
-  'Протереть стойку и кофемашину',
-  'Проверить чистоту зала и санузла',
-  'Проверить кассу и терминал оплаты',
-  'Сфотографировать витрину на открытие',
-];
 
 // ─── Load ──────────────────────────────────────────────────────────────────
 
@@ -614,104 +599,6 @@ function cleanPhone(phone) {
   return phone.replace(/\D/g, '');
 }
 
-// ─── Checklist ─────────────────────────────────────────────────────────────
-
-function showChecklistScreen() {
-  hide('home-screen');
-  checklistLocation = null;
-  checklistChecked = new Set();
-  renderChecklistLocationList();
-  renderChecklistItems();
-  show('checklist-screen');
-}
-
-function renderChecklistLocationList() {
-  const container = document.getElementById('checklist-location-list');
-  if (!catalog.locations || catalog.locations.length === 0) {
-    container.innerHTML = '<div class="empty-state" style="padding:20px 0">Точки не добавлены</div>';
-    return;
-  }
-  container.innerHTML = catalog.locations.map(loc => `
-    <div class="location-card ${checklistLocation?.id === loc.id ? 'selected' : ''}"
-         onclick="selectChecklistLocation('${escHtml(loc.id)}')">
-      <div class="location-info">
-        <div class="location-name">${escHtml(loc.name)}</div>
-        ${loc.city ? `<div class="location-address">${escHtml(loc.city)}</div>` : ''}
-      </div>
-      <div class="location-check">✓</div>
-    </div>
-  `).join('');
-}
-
-function selectChecklistLocation(locId) {
-  checklistLocation = catalog.locations.find(l => l.id === locId) || null;
-  renderChecklistLocationList();
-  updateChecklistSubmitBtn();
-}
-
-function renderChecklistItems() {
-  const container = document.getElementById('checklist-items');
-  container.innerHTML = CHECKLIST_ITEMS.map((item, idx) => `
-    <div class="checklist-item ${checklistChecked.has(idx) ? 'done' : ''}"
-         onclick="toggleChecklistItem(${idx})">
-      <div class="checklist-checkbox">${checklistChecked.has(idx) ? '✓' : ''}</div>
-      <div class="checklist-label">${escHtml(item)}</div>
-    </div>
-  `).join('');
-  updateChecklistScore();
-}
-
-function toggleChecklistItem(idx) {
-  if (checklistChecked.has(idx)) checklistChecked.delete(idx);
-  else checklistChecked.add(idx);
-  renderChecklistItems();
-}
-
-function updateChecklistScore() {
-  const done = checklistChecked.size;
-  const total = CHECKLIST_ITEMS.length;
-  const label = document.getElementById('checklist-score-label');
-  if (label) label.textContent = `Выполнено: ${done} / ${total}`;
-}
-
-function updateChecklistSubmitBtn() {
-  const btn = document.getElementById('checklist-submit-btn');
-  if (btn) btn.disabled = !checklistLocation;
-}
-
-async function submitChecklist() {
-  const btn = document.getElementById('checklist-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Отправка...';
-
-  const items = CHECKLIST_ITEMS.map((name, idx) => ({ name, done: checklistChecked.has(idx) }));
-  const userData = tg?.initDataUnsafe?.user;
-  const locationStr = checklistLocation
-    ? `${checklistLocation.name}${checklistLocation.city ? ', ' + checklistLocation.city : ''}`
-    : '';
-
-  try {
-    const res = await fetch('/api/checklist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: userData?.id || 'unknown',
-        userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
-        location: locationStr,
-        items,
-      }),
-    });
-    if (!res.ok) throw new Error();
-    hide('checklist-screen');
-    show('home-screen');
-    showToast('Отчёт по открытию отправлен ✓');
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = 'Отправить отчёт';
-    showToast('Ошибка — попробуйте ещё раз');
-  }
-}
-
 // ─── Toast ─────────────────────────────────────────────────────────────────
 
 function showToast(msg) {
@@ -731,7 +618,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('info-flow-btn').onclick = () => showInfoScreen('desserts');
   document.getElementById('food-info-btn').onclick = () => showInfoScreen('food');
   document.getElementById('history-flow-btn').onclick = showHistoryScreen;
-  document.getElementById('checklist-flow-btn').onclick = showChecklistScreen;
 
   document.getElementById('loc-back-btn').onclick = () => {
     hide('location-screen');
@@ -782,12 +668,6 @@ document.addEventListener('DOMContentLoaded', () => {
     hide('history-screen');
     show('home-screen');
   };
-
-  document.getElementById('checklist-back-btn').onclick = () => {
-    hide('checklist-screen');
-    show('home-screen');
-  };
-  document.getElementById('checklist-submit-btn').onclick = submitChecklist;
 
   document.getElementById('search-input').addEventListener('input', renderProducts);
   document.getElementById('info-search-input').addEventListener('input', renderInfoProducts);

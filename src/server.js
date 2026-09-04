@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const https = require('https');
-const { getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, saveChecklist, clearCache } = require('./sheets');
+const { getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, clearCache } = require('./sheets');
 
 function sendTelegramMessage(chatId, text) {
   return new Promise((resolve, reject) => {
@@ -92,21 +92,6 @@ app.get('/api/orders', async (req, res) => {
   } catch (err) {
     console.error('Orders fetch error:', err.message);
     res.status(500).json({ error: 'Не удалось загрузить историю' });
-  }
-});
-
-// Отчёт по открытию смены
-app.post('/api/checklist', async (req, res) => {
-  try {
-    const data = req.body;
-    if (!data || !data.location) {
-      return res.status(400).json({ error: 'Не выбрана точка' });
-    }
-    await saveChecklist(data);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('Checklist save error:', err.message);
-    res.status(500).json({ error: 'Не удалось сохранить отчёт' });
   }
 });
 
