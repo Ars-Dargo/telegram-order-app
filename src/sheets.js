@@ -2,6 +2,7 @@ const { google } = require('googleapis');
 const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: parseInt(process.env.CACHE_TTL) || 300 });
+const ORDERS_CACHE_KEY = 'orders_history';
 
 async function getAuth() {
   // Supports both a JSON file (local dev) and inline JSON string (cloud env var)
@@ -97,21 +98,27 @@ async function saveOrder(order) {
       },
     });
   }
+
+  cache.del(ORDERS_CACHE_KEY);
 }
 
 async function getOrders() {
+  const cached = cache.get(ORDERS_CACHE_KEY);
+  if (cached) return cached;
+
   const auth = await getAuth();
   const sheets = google.sheets({ version: 'v4', auth });
+  // Полные колонки, а не A1:H500 — иначе с ростом листа история застревает на старых заявках
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.SPREADSHEET_ID,
-    range: 'Orders!A1:H500',
+    range: 'Orders!A:H',
   });
 
   const rows = response.data.values;
   if (!rows || rows.length < 2) return [];
 
   const headers = rows[0].map(h => h.trim());
-  return rows.slice(1)
+  const result = rows.slice(1)
     .reverse()
     .slice(0, 150)
     .map(row => {
@@ -119,6 +126,9 @@ async function getOrders() {
       headers.forEach((h, i) => { obj[h] = row[i] || ''; });
       return obj;
     });
+
+  cache.set(ORDERS_CACHE_KEY, result, 60);
+  return result;
 }
 
 function colLetter(n) {
