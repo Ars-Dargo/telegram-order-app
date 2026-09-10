@@ -70,6 +70,8 @@ app.post('/api/orders', async (req, res) => {
       for (const item of so.items) {
         text += `• ${esc(item.name)} — ${item.quantity} ${esc(item.unit)}\n`;
       }
+      if (so.comment) text += `\n💬 <b>Комментарий:</b> ${esc(so.comment)}\n`;
+      if (order.comment) text += `\n📝 <b>Комментарий к заявке:</b> ${esc(order.comment)}\n`;
       try {
         await sendTelegramMessage(so.telegramChatId, text);
       } catch (e) {

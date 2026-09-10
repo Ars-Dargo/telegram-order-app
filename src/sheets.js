@@ -82,7 +82,7 @@ async function saveOrder(order) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: 'Orders!A:H',
+      range: 'Orders!A:J',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[
@@ -94,6 +94,8 @@ async function saveOrder(order) {
           itemsText,
           supplierOrder.items.length,
           order.location || '',
+          supplierOrder.comment || '',
+          order.comment || '',
         ]],
       },
     });
@@ -111,7 +113,7 @@ async function getOrders() {
   // Полные колонки, а не A1:H500 — иначе с ростом листа история застревает на старых заявках
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.SPREADSHEET_ID,
-    range: 'Orders!A:H',
+    range: 'Orders!A:J',
   });
 
   const rows = response.data.values;

@@ -826,3 +826,70 @@ header {
   font-weight: 400;
   padding: 10px;
 }
+
+/* --- Comments (cart / order / history) --- */
+
+.cart-comment {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--secondary-bg);
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+
+.cart-comment.filled { border-color: var(--orange); }
+
+.cart-comment-general {
+  margin: 18px 0 8px;
+  padding: 12px;
+}
+
+.cart-comment-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hint);
+  margin-bottom: 6px;
+}
+
+.cart-comment-general .cart-comment-label { color: var(--text); }
+
+.cart-comment-input {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 10px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.cart-comment-input:focus { border-color: var(--orange); }
+
+.order-comment-text {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+
+.order-general-comment { border: 1px solid var(--orange); }
+
+.history-comment {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  margin-top: 5px;
+}
+
+.history-comment-general {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}

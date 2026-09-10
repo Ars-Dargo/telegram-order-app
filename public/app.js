@@ -6,6 +6,9 @@ if (tg) {
 
 let catalog = { suppliers: [], products: [], foodProducts: [], locations: [] };
 let cart = {};
+// Комментарии к заявке: общий и отдельный для каждого поставщика (по supplier_id)
+let orderComment = '';
+let supplierComments = {};
 let currentOrderMode = 'desserts';
 let infoMode = 'desserts';
 let activeCategory = 'Все';
@@ -42,6 +45,7 @@ function activeProducts() {
 function showOrderFlow(mode) {
   currentOrderMode = mode || 'desserts';
   cart = {};
+  clearComments();
   updateCartUI();
   activeCategory = 'Все';
   const searchInput = document.getElementById('search-input');
@@ -104,13 +108,18 @@ function renderHistoryScreen(orders) {
         date: row.date,
         location: row.location,
         user_name: row.user_name,
+        comment: row.order_comment || '',
         suppliers: [],
       };
       orderedIds.push(row.order_id);
     }
+    if (!historyOrders[row.order_id].comment && row.order_comment) {
+      historyOrders[row.order_id].comment = row.order_comment;
+    }
     historyOrders[row.order_id].suppliers.push({
       name: row.supplier_name,
       items: row.items,
+      comment: row.supplier_comment || '',
     });
   });
 
@@ -127,8 +136,10 @@ function renderHistoryScreen(orders) {
           <div class="history-supplier">
             <div class="history-supplier-name">${escHtml(s.name)}</div>
             <div class="history-items">${escHtml(s.items)}</div>
+            ${s.comment ? `<div class="history-comment">💬 ${escHtml(s.comment)}</div>` : ''}
           </div>
         `).join('')}
+        ${o.comment ? `<div class="history-comment history-comment-general">📝 ${escHtml(o.comment)}</div>` : ''}
         <button class="history-reorder-btn" onclick="reorderFromHistory('${escHtml(id)}')">
           🔄 Повторить заказ
         </button>
@@ -457,11 +468,19 @@ function renderCartPanel() {
     ? `<div class="cart-location-badge">📍 ${escHtml(selectedLocation.name)}${selectedLocation.city ? ' — ' + escHtml(selectedLocation.city) : ''}</div>`
     : '';
 
+  const activeSuppliers = new Set(Object.keys(grouped));
+  // Чистим комментарии поставщиков, у которых больше нет позиций
+  Object.keys(supplierComments).forEach(sid => {
+    if (!activeSuppliers.has(sid)) delete supplierComments[sid];
+  });
+
   container.innerHTML = locBadge + Object.entries(grouped).map(([sid, items]) => {
     const supplier = supplierMap[sid];
+    const supplierName = supplier ? supplier.name : 'Прочее';
+    const comment = supplierComments[sid] || '';
     return `
       <div class="cart-supplier-group">
-        <div class="cart-supplier-title">${supplier ? escHtml(supplier.name) : 'Прочее'}</div>
+        <div class="cart-supplier-title">${escHtml(supplierName)}</div>
         ${items.map(item => `
           <div class="cart-item">
             <span class="cart-item-name">${escHtml(item.name)}</span>
@@ -469,9 +488,37 @@ function renderCartPanel() {
             <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">✕</button>
           </div>
         `).join('')}
+        <div class="cart-comment ${comment ? 'filled' : ''}">
+          <label class="cart-comment-label" for="comment-${escHtml(sid)}">💬 Комментарий для «${escHtml(supplierName)}»</label>
+          <textarea id="comment-${escHtml(sid)}" class="cart-comment-input" rows="2"
+                    placeholder="Необязательно: пожелания по этому поставщику"
+                    oninput="setSupplierComment('${escHtml(sid)}', this.value)">${escHtml(comment)}</textarea>
+        </div>
       </div>
     `;
-  }).join('');
+  }).join('') + `
+    <div class="cart-comment cart-comment-general ${orderComment ? 'filled' : ''}">
+      <label class="cart-comment-label" for="order-comment">📝 Комментарий ко всей заявке</label>
+      <textarea id="order-comment" class="cart-comment-input" rows="3"
+                placeholder="Необязательно: общий комментарий — уйдёт всем поставщикам заявки"
+                oninput="setOrderComment(this.value)">${escHtml(orderComment)}</textarea>
+    </div>
+  `;
+}
+
+function setSupplierComment(sid, value) {
+  const text = value.trim();
+  if (text) supplierComments[sid] = text;
+  else delete supplierComments[sid];
+}
+
+function setOrderComment(value) {
+  orderComment = value.trim();
+}
+
+function clearComments() {
+  orderComment = '';
+  supplierComments = {};
 }
 
 function removeFromCart(productId) {
@@ -482,6 +529,7 @@ function removeFromCart(productId) {
 
 function clearCart() {
   cart = {};
+  clearComments();
   activeProducts().forEach(p => {
     const el = document.getElementById(`qty-${p.id}`);
     if (el) el.textContent = '0';
@@ -512,6 +560,7 @@ function sendOrders() {
       supplierId: sid,
       supplierName: supplier?.name || 'Поставщик',
       telegramChatId: supplier?.telegram_chat_id || null,
+      comment: supplierComments[sid] || '',
       items: items.map(i => ({ id: i.id, name: i.name, quantity: i.quantity, unit: i.unit || 'шт' })),
     };
   });
@@ -549,6 +598,7 @@ async function confirmOrderType(type) {
         userName: userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'unknown',
         location: locationStr,
         orderType: type,
+        comment: orderComment,
         supplierOrders: currentSupplierOrders,
       }),
     });
@@ -583,8 +633,13 @@ function renderOrderConfirmation(supplierOrders, orderType) {
       <div class="order-summary-card">
         <div class="order-supplier-name">${escHtml(so.supplierName)}</div>
         <div class="order-items-text">${so.items.map(i => `• ${escHtml(i.name)} — ${i.quantity} ${escHtml(i.unit)}`).join('<br>')}</div>
+        ${so.comment ? `<div class="order-comment-text">💬 ${escHtml(so.comment)}</div>` : ''}
       </div>
-    `).join('');
+    `).join('') +
+    (orderComment ? `<div class="order-summary-card order-general-comment">
+        <div class="order-supplier-name">📝 Комментарий к заявке</div>
+        <div class="order-comment-text">${escHtml(orderComment)}</div>
+      </div>` : '');
 }
 
 function markSent(idx) {
