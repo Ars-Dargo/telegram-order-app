@@ -2,30 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const https = require('https');
+const cron = require('node-cron');
 const { getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, clearCache } = require('./sheets');
-
-function sendTelegramMessage(chatId, text) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
-    const req = https.request({
-      hostname: 'api.telegram.org',
-      path: `/bot${process.env.BOT_TOKEN}/sendMessage`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    }, res => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        const json = JSON.parse(data);
-        if (json.ok) resolve(json); else reject(new Error(json.description));
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
+const { getCards, saveCard, saveFeedback, DRINKS } = require('./coffee');
+const { sendTelegramMessage } = require('./telegram');
+const { sendWeeklyDigest } = require('./digest');
 
 const app = express();
 app.use(cors());
@@ -102,6 +83,80 @@ app.post('/api/refresh', (req, res) => {
   clearCache();
   res.json({ ok: true });
 });
+
+// ─── Карточка кофе для гостя (QR) ───────────────────────────────────────────
+
+// Данные для гостевой страницы: паспорт зерна и рецепт по точке
+app.get('/api/coffee/:locationId', async (req, res) => {
+  try {
+    const locations = await getLocations();
+    const location = locations.find(l => l.id === req.params.locationId);
+    if (!location) return res.status(404).json({ error: 'Точка не найдена' });
+
+    const cards = await getCards(location.id);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({ location: { id: location.id, name: location.name }, cards });
+  } catch (err) {
+    console.error('Coffee card error:', err.message);
+    res.status(500).json({ error: 'Не удалось загрузить карточку' });
+  }
+});
+
+// Сохранение карточки бариста — append-лог, ничего не перезаписывается
+app.post('/api/coffee/card', async (req, res) => {
+  try {
+    const card = req.body;
+    if (!card?.locationId || !DRINKS.includes(card.drink)) {
+      return res.status(400).json({ error: 'Не выбрана точка или напиток' });
+    }
+    await saveCard(card);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Coffee save error:', err.message);
+    res.status(500).json({ error: 'Не удалось сохранить карточку' });
+  }
+});
+
+// Отзыв гостя: обязательных полей нет, но пустой отзыв не пишем
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const fb = req.body;
+    if (!fb?.locationId) return res.status(400).json({ error: 'Не указана точка' });
+
+    const hasContent = fb.rating || fb.q1 || fb.q2 || fb.q3 || (fb.comment || '').trim();
+    if (!hasContent) return res.status(400).json({ error: 'Пустой отзыв' });
+
+    const rating = fb.rating ? parseInt(fb.rating, 10) : '';
+    if (rating !== '' && (isNaN(rating) || rating < 1 || rating > 10)) {
+      return res.status(400).json({ error: 'Оценка вне шкалы' });
+    }
+
+    await saveFeedback({ ...fb, rating });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Feedback error:', err.message);
+    res.status(500).json({ error: 'Не удалось отправить отзыв' });
+  }
+});
+
+// Гостевая страница по QR: feedfabrista.ru/L03 — обычный веб, не Mini App.
+// Регистрируется последней, иначе перехватит статику; точка с несуществующим id → 404.
+app.get('/:locationId([A-Za-z0-9_-]{1,12})', async (req, res, next) => {
+  try {
+    const locations = await getLocations();
+    if (!locations.some(l => l.id === req.params.locationId)) return next();
+    res.sendFile(path.join(__dirname, '../public/guest.html'));
+  } catch (err) {
+    console.error('Guest page error:', err.message);
+    next();
+  }
+});
+
+// Сводка по отзывам: пятница, 16:00 по Москве. Часовой пояс задаём явно —
+// на Railway контейнер живёт в UTC, и без него сводка ушла бы в 19:00.
+cron.schedule('0 16 * * 5', () => {
+  sendWeeklyDigest().catch(err => console.error('Digest error:', err.message));
+}, { timezone: 'Europe/Moscow' });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

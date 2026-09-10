@@ -893,3 +893,78 @@ header {
   padding-top: 8px;
   border-top: 1px solid rgba(0,0,0,0.06);
 }
+
+/* ─── Карточка кофе для гостя ─────────────────────────────────────────── */
+
+.coffee-hint {
+  padding: 12px 16px 0;
+  font-size: 13px;
+  color: var(--hint);
+  line-height: 1.4;
+}
+
+#coffee-location-list { padding: 12px 16px 24px; }
+
+#coffee-drink-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px 4px;
+}
+
+#coffee-drink-tabs .cat-tab { flex: 1; text-align: center; }
+
+#coffee-form { padding: 8px 16px 16px; }
+
+.coffee-field { margin-top: 14px; }
+
+.coffee-label {
+  display: block;
+  font-size: 13px;
+  color: var(--hint);
+  margin-bottom: 5px;
+}
+
+.coffee-input {
+  width: 100%;
+  padding: 11px 13px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--secondary-bg);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.coffee-input:focus { border-color: var(--orange); }
+
+.coffee-row {
+  display: flex;
+  gap: 8px;
+}
+
+.coffee-row .coffee-field { flex: 1; }
+
+.coffee-section-title {
+  margin-top: 22px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.coffee-meta {
+  margin-top: 18px;
+  padding: 11px 13px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--hint);
+  background: var(--secondary-bg);
+  border-radius: var(--radius);
+}
+
+.coffee-meta.stale {
+  color: #B0300A;
+  background: #FDEDE7;
+}

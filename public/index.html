@@ -126,6 +126,20 @@
           <span class="home-btn-label">История заказов</span>
         </button>
 
+        <!-- Чашка — Карточка кофе для гостя -->
+        <button id="coffee-card-btn" class="home-btn home-btn-outline">
+          <span class="home-btn-mascot">
+            <svg viewBox="0 0 44 28" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14,4 Q11,1 14,-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" transform="translate(0,4)"/>
+              <path d="M21,4 Q18,1 21,-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" transform="translate(0,4)"/>
+              <path d="M8,11 h20 v6 a10,10 0 0 1 -20,0 z"/>
+              <path d="M28,12.5 a5,5 0 0 1 0,7" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <ellipse cx="18" cy="25" rx="15" ry="2.5"/>
+            </svg>
+          </span>
+          <span class="home-btn-label">Карточка кофе для гостя</span>
+        </button>
+
       </div>
     </div>
 
@@ -209,6 +223,32 @@
         <div class="spinner" style="margin:40px auto"></div>
       </div>
       <div id="history-list"></div>
+    </div>
+
+    <!-- Карточка кофе: выбор точки -->
+    <div id="coffee-loc-screen" class="hidden fullscreen-panel">
+      <div class="panel-header">
+        <button id="coffee-loc-back-btn">← Назад</button>
+        <h2>Карточка кофе</h2>
+      </div>
+      <div class="coffee-hint">Выберите точку — гость увидит эту карточку, отсканировав QR у себя на подставке.</div>
+      <div id="coffee-location-list"></div>
+    </div>
+
+    <!-- Карточка кофе: форма -->
+    <div id="coffee-form-screen" class="hidden fullscreen-panel">
+      <div class="panel-header">
+        <button id="coffee-form-back-btn">← Назад</button>
+        <h2 id="coffee-form-title">Карточка кофе</h2>
+      </div>
+      <div id="coffee-drink-tabs">
+        <button class="cat-tab active" data-drink="espresso">Эспрессо</button>
+        <button class="cat-tab" data-drink="filter">Фильтр</button>
+      </div>
+      <div id="coffee-form"></div>
+      <div class="bottom-actions">
+        <button id="coffee-save-btn" class="btn-primary">Сохранить</button>
+      </div>
     </div>
 
     <!-- Error -->

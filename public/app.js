@@ -17,6 +17,10 @@ let sentOrders = new Set();
 let selectedLocation = null;
 let currentSupplierOrders = [];
 let historyOrders = {};
+// Карточка кофе для гостя
+let coffeeLocation = null;
+let coffeeDrink = 'espresso';
+let coffeeCards = { espresso: null, filter: null };
 
 // ─── Load ──────────────────────────────────────────────────────────────────
 
@@ -663,6 +667,159 @@ function showToast(msg) {
   setTimeout(() => toast.classList.remove('visible'), 2800);
 }
 
+// ─── Карточка кофе для гостя ───────────────────────────────────────────────
+
+// Поля различаются: у фильтра только батч брю, поэтому ни обработки, ни рецепта
+const COFFEE_FIELDS = {
+  espresso: [
+    { key: 'roaster', label: 'Обжарщик' },
+    { key: 'country', label: 'Страна' },
+    { key: 'region', label: 'Регион' },
+    { key: 'process', label: 'Обработка' },
+    { key: 'descriptors', label: 'Дескрипторы вкуса', placeholder: 'персик, жасмин, мёд' },
+  ],
+  filter: [
+    { key: 'roaster', label: 'Обжарщик' },
+    { key: 'country', label: 'Страна' },
+    { key: 'region', label: 'Регион' },
+    { key: 'descriptors', label: 'Дескрипторы вкуса', placeholder: 'персик, жасмин, мёд' },
+  ],
+};
+
+const COFFEE_RECIPE = [
+  { key: 'dose_g', label: 'Доза, г' },
+  { key: 'time_s', label: 'Время, сек' },
+  { key: 'yield_g', label: 'Выход, г' },
+];
+
+function showCoffeeScreen() {
+  hide('home-screen');
+  renderCoffeeLocations();
+  show('coffee-loc-screen');
+}
+
+function renderCoffeeLocations() {
+  const container = document.getElementById('coffee-location-list');
+
+  if (!catalog.locations || catalog.locations.length === 0) {
+    container.innerHTML = '<div class="empty-state">Точки не добавлены.<br>Заполните лист <b>Locations</b> в Google Sheets.</div>';
+    return;
+  }
+
+  container.innerHTML = catalog.locations.map(loc => `
+    <div class="location-card" onclick="openCoffeeForm('${escHtml(loc.id)}')">
+      <div class="location-info">
+        <div class="location-name">${escHtml(loc.name)}</div>
+        <div class="location-address">${escHtml(loc.id)}</div>
+      </div>
+      <div class="location-check" style="opacity:1">→</div>
+    </div>
+  `).join('');
+}
+
+async function openCoffeeForm(locId) {
+  coffeeLocation = catalog.locations.find(l => l.id === locId) || null;
+  if (!coffeeLocation) return;
+
+  coffeeDrink = 'espresso';
+  coffeeCards = { espresso: null, filter: null };
+
+  hide('coffee-loc-screen');
+  document.getElementById('coffee-form-title').textContent = coffeeLocation.name;
+  document.getElementById('coffee-form').innerHTML = '<div class="spinner" style="margin:40px auto"></div>';
+  show('coffee-form-screen');
+
+  try {
+    const res = await fetch(`/api/coffee/${encodeURIComponent(locId)}?t=${Date.now()}`);
+    if (!res.ok) throw new Error('Network error');
+    const data = await res.json();
+    coffeeCards = data.cards || { espresso: null, filter: null };
+  } catch (e) {
+    showToast('Не удалось загрузить карточку');
+  }
+
+  setCoffeeDrink('espresso');
+}
+
+function setCoffeeDrink(drink) {
+  coffeeDrink = drink;
+  document.querySelectorAll('#coffee-drink-tabs .cat-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.drink === drink);
+  });
+  renderCoffeeForm();
+}
+
+function renderCoffeeForm() {
+  const card = coffeeCards[coffeeDrink];
+  const val = key => escHtml(card?.[key] || '');
+
+  const field = f => `
+    <div class="coffee-field">
+      <label class="coffee-label" for="coffee-${f.key}">${f.label}</label>
+      <input class="coffee-input" id="coffee-${f.key}" type="text"
+             value="${val(f.key)}" placeholder="${f.placeholder || ''}" />
+    </div>`;
+
+  let html = COFFEE_FIELDS[coffeeDrink].map(field).join('');
+
+  if (coffeeDrink === 'espresso') {
+    html += '<div class="coffee-section-title">Рецепт</div>';
+    html += `<div class="coffee-row">${COFFEE_RECIPE.map(field).join('')}</div>`;
+  }
+
+  html += `<div class="coffee-meta${card?.stale ? ' stale' : ''}">${coffeeMetaText(card)}</div>`;
+
+  document.getElementById('coffee-form').innerHTML = html;
+}
+
+function coffeeMetaText(card) {
+  if (!card) return 'Карточка ещё не заполнена — гость видит «уточните у бариста».';
+  if (card.stale) return `Карточка погасла у гостя: не обновлялась дольше недели.<br>Последним менял: ${escHtml(card.author_name || '—')}, ${escHtml(card.ts || '')}.`;
+  return `Последним менял: ${escHtml(card.author_name || '—')}, ${escHtml(card.ts || '')}.`;
+}
+
+async function saveCoffeeCard() {
+  if (!coffeeLocation) return;
+
+  const btn = document.getElementById('coffee-save-btn');
+  const get = key => document.getElementById(`coffee-${key}`)?.value.trim() || '';
+
+  const payload = {
+    locationId: coffeeLocation.id,
+    drink: coffeeDrink,
+    authorId: coffeeUser()?.id || 'unknown',
+    authorName: coffeeUser() ? `${coffeeUser().first_name} ${coffeeUser().last_name || ''}`.trim() : 'unknown',
+  };
+  for (const f of COFFEE_FIELDS[coffeeDrink]) payload[f.key] = get(f.key);
+  if (coffeeDrink === 'espresso') for (const f of COFFEE_RECIPE) payload[f.key] = get(f.key);
+
+  btn.disabled = true;
+  btn.textContent = 'Сохраняем...';
+
+  try {
+    const res = await fetch('/api/coffee/card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Save failed');
+
+    showToast('Сохранено — гость уже видит');
+    // Перечитываем с сервера, чтобы в подписи стояло настоящее время записи
+    const fresh = await fetch(`/api/coffee/${encodeURIComponent(coffeeLocation.id)}?t=${Date.now()}`);
+    if (fresh.ok) coffeeCards = (await fresh.json()).cards || coffeeCards;
+    renderCoffeeForm();
+  } catch (e) {
+    showToast('Не удалось сохранить');
+  } finally {
+    // Сбрасываем всегда, иначе кнопка застревает после ошибки
+    btn.disabled = false;
+    btn.textContent = 'Сохранить';
+  }
+}
+
+function coffeeUser() { return tg?.initDataUnsafe?.user; }
+
 // ─── Navigation ────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -673,6 +830,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('info-flow-btn').onclick = () => showInfoScreen('desserts');
   document.getElementById('food-info-btn').onclick = () => showInfoScreen('food');
   document.getElementById('history-flow-btn').onclick = showHistoryScreen;
+  document.getElementById('coffee-card-btn').onclick = showCoffeeScreen;
+
+  document.getElementById('coffee-loc-back-btn').onclick = () => {
+    hide('coffee-loc-screen');
+    show('home-screen');
+  };
+
+  document.getElementById('coffee-form-back-btn').onclick = () => {
+    hide('coffee-form-screen');
+    show('coffee-loc-screen');
+  };
+
+  document.getElementById('coffee-save-btn').onclick = saveCoffeeCard;
+
+  document.querySelectorAll('#coffee-drink-tabs .cat-tab').forEach(tab => {
+    tab.onclick = () => setCoffeeDrink(tab.dataset.drink);
+  });
 
   document.getElementById('loc-back-btn').onclick = () => {
     hide('location-screen');

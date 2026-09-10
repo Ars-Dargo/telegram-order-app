@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#FDF7EC" />
+<meta name="robots" content="noindex" />
+<title>Fabrista</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600&family=Manrope:wght@400;500;600;700&display=swap" />
+<style>
+  /* Светлая кремовая тема: страницу читают днём в зале, с чашкой в руке.
+     Радиусы: 22px у крупных блоков, 16px у плиток, 12px у мелких элементов. */
+  :root {
+    --paper: #FDF7EC;
+    --ink: #2B1D12;
+    --muted: #7E6F60;
+    --accent: #E8481F;
+    --tile: rgba(255, 255, 255, .58);
+    --tile-strong: rgba(255, 255, 255, .74);
+    --edge: rgba(43, 29, 18, .10);
+    --edge-lit: rgba(255, 255, 255, .8);
+    --sheet: rgba(253, 247, 236, .88);
+    --shadow: 0 10px 30px rgba(80, 48, 22, .09);
+    --r-lg: 22px;
+    --r-md: 16px;
+    --r-sm: 12px;
+    --display: 'Comfortaa', 'Trebuchet MS', sans-serif;
+    --sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --ease: cubic-bezier(.32, .72, 0, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ─── Живой фон ─────────────────────────────────────────── */
+
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  /* Пятна медленно дышат сами и слегка смещаются за пальцем: экран перестаёт
+     быть неподвижной заливкой, но не мельтешит — гость пришёл читать. */
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(58px);
+    will-change: transform;
+    transform: translate3d(calc(var(--px, 0) * var(--k)), calc(var(--py, 0) * var(--k)), 0);
+    transition: transform .9s cubic-bezier(.2, .8, .2, 1);
+  }
+
+  .blob i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    animation: breathe var(--dur) ease-in-out infinite alternate;
+  }
+
+  .b1 { --k: 22px; left: -18%; top: -12%; width: 78vw; height: 78vw; }
+  .b1 i { background: radial-gradient(circle, #FFC59B 0%, rgba(255,197,155,0) 70%); --dur: 14s; }
+
+  .b2 { --k: -30px; right: -22%; top: 8%; width: 72vw; height: 72vw; }
+  .b2 i { background: radial-gradient(circle, #BFDCF5 0%, rgba(191,220,245,0) 70%); --dur: 18s; animation-delay: -4s; }
+
+  .b3 { --k: 16px; left: 6%; bottom: -20%; width: 88vw; height: 88vw; }
+  .b3 i { background: radial-gradient(circle, #FFD2AE 0%, rgba(255,210,174,0) 68%); --dur: 22s; animation-delay: -9s; }
+
+  .b4 { --k: -18px; right: 2%; bottom: 6%; width: 54vw; height: 54vw; }
+  .b4 i { background: radial-gradient(circle, #CFE8D6 0%, rgba(207,232,214,0) 70%); --dur: 16s; animation-delay: -6s; }
+
+  @keyframes breathe {
+    from { transform: scale(.86) translate(0, 0); opacity: .75; }
+    to   { transform: scale(1.12) translate(4%, -3%); opacity: 1; }
+  }
+
+  /* Зерно поверх пятен: убирает цифровую гладкость, как печать на бумаге */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    opacity: .38;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E");
+  }
+
+  .app {
+    position: relative;
+    z-index: 2;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: calc(22px + env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  /* ─── Шапка ─────────────────────────────────────────────── */
+
+  .brand {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .venue {
+    margin-top: 1px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  /* ─── Сегмент-контрол ───────────────────────────────────── */
+
+  .seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 4px;
+    background: var(--tile);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--edge-lit);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  .seg-thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: var(--accent);
+    border-radius: 12px;
+    transition: transform .38s var(--ease);
+  }
+
+  .seg[data-drink="filter"] .seg-thumb { transform: translateX(100%); }
+
+  .seg button {
+    position: relative;
+    z-index: 1;
+    padding: 10px 6px;
+    font: inherit;
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    transition: color .3s var(--ease);
+  }
+
+  .seg button[aria-selected="true"] { color: #FFF6EE; }
+
+  /* ─── Карточка зерна ────────────────────────────────────── */
+
+  .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  /* Рисунок занимает свободную высоту экрана: без него на месте запаса
+     оставалась дыра, а так гость сразу видит, про какой напиток карточка */
+  .art {
+    flex: 1;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0 2px;
+  }
+
+  .art svg {
+    height: 100%;
+    max-height: 240px;
+    width: auto;
+    max-width: 100%;
+    color: var(--accent);
+  }
+
+  .descriptors {
+    font-family: var(--display);
+    font-size: clamp(24px, 7.4vw, 32px);
+    line-height: 1.22;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    padding: 0 2px;
+  }
+
+  .origin {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .origin > div {
+    padding: 11px 13px;
+    background: var(--tile);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--edge-lit);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .origin > div.wide { grid-column: 1 / -1; }
+
+  .origin dt {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .origin dd {
+    margin-top: 2px;
+    font-size: 15.5px;
+    font-weight: 500;
+  }
+
+  .recipe {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .recipe > div {
+    padding: 12px 8px;
+    text-align: center;
+    background: var(--tile-strong);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--edge-lit);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .recipe b {
+    display: block;
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .recipe span {
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card-empty {
+    padding: 20px 18px;
+    font-size: 15px;
+    color: var(--muted);
+    background: var(--tile);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* ─── Кнопка отзыва ─────────────────────────────────────── */
+
+  .cta {
+    width: 100%;
+    padding: 17px;
+    font: inherit;
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 600;
+    color: #FFF6EE;
+    background: var(--accent);
+    border: 0;
+    border-radius: var(--r-lg);
+    box-shadow: 0 10px 26px rgba(232, 72, 31, .26);
+    cursor: pointer;
+    transition: transform .2s var(--ease);
+  }
+
+  .cta:active { transform: scale(.975); }
+
+  .done {
+    padding: 16px;
+    text-align: center;
+    font-size: 14.5px;
+    color: var(--muted);
+    background: var(--tile);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow);
+  }
+
+  .done b {
+    display: block;
+    font-family: var(--display);
+    color: var(--accent);
+    font-size: 19px;
+    font-weight: 600;
+  }
+
+  /* ─── Лист отзыва ───────────────────────────────────────── */
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgba(43, 29, 18, .34);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity .38s var(--ease);
+  }
+
+  .scrim.on { opacity: 1; }
+
+  .sheet {
+    position: fixed;
+    z-index: 11;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 92dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--sheet);
+    border-top: 1px solid var(--edge-lit);
+    border-radius: 28px 28px 0 0;
+    backdrop-filter: blur(36px) saturate(170%);
+    -webkit-backdrop-filter: blur(36px) saturate(170%);
+    box-shadow: 0 -16px 50px rgba(80, 48, 22, .2);
+    transform: translateY(100%);
+    transition: transform .44s var(--ease);
+  }
+
+  .sheet.on { transform: none; }
+
+  .grabber {
+    flex: none;
+    width: 38px;
+    height: 5px;
+    margin: 8px auto 0;
+    background: rgba(43, 29, 18, .18);
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .sheet-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 18px 4px;
+  }
+
+  .sheet-title {
+    font-family: var(--display);
+    font-size: 21px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .sheet-sub {
+    margin-top: 3px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  .scale {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+  }
+
+  .scale button {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font: inherit;
+    font-family: var(--display);
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--tile-strong);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: transform .18s var(--ease), background-color .22s var(--ease), color .22s var(--ease);
+  }
+
+  .scale button:active { transform: scale(.9); }
+
+  .scale button[aria-pressed="true"] {
+    color: #FFF6EE;
+    background: var(--accent);
+    border-color: transparent;
+    font-weight: 700;
+  }
+
+  .scale-ends {
+    margin-top: 7px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .question { margin-top: 20px; }
+
+  .question p { font-size: 14.5px; font-weight: 600; }
+
+  .choices { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .choices button {
+    padding: 9px 14px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--tile-strong);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: transform .18s var(--ease), background-color .22s var(--ease), color .22s var(--ease);
+  }
+
+  .choices button:active { transform: scale(.96); }
+
+  .choices button[aria-pressed="true"] {
+    color: #FFF6EE;
+    background: var(--accent);
+    border-color: transparent;
+    font-weight: 600;
+  }
+
+  textarea {
+    margin-top: 8px;
+    width: 100%;
+    min-height: 74px;
+    padding: 12px 13px;
+    font: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--tile-strong);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    resize: none;
+    outline: none;
+    transition: border-color .22s var(--ease);
+  }
+
+  textarea::placeholder { color: #9A8C7C; }
+  textarea:focus { border-color: var(--accent); }
+
+  .counter { margin-top: 5px; font-size: 12px; color: var(--muted); text-align: right; }
+
+  .sheet-foot {
+    flex: none;
+    padding: 10px 18px calc(16px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--edge);
+  }
+
+  .send {
+    width: 100%;
+    padding: 16px;
+    font: inherit;
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 600;
+    color: #FFF6EE;
+    background: var(--accent);
+    border: 0;
+    border-radius: var(--r-lg);
+    cursor: pointer;
+    transition: transform .2s var(--ease);
+  }
+
+  .send:active { transform: scale(.985); }
+
+  .send:disabled {
+    color: var(--muted);
+    background: rgba(43, 29, 18, .07);
+    cursor: default;
+  }
+
+  .error { margin-top: 9px; font-size: 13.5px; color: #C0341A; text-align: center; }
+
+  /* ─── Служебное ─────────────────────────────────────────── */
+
+  .skeleton {
+    background: var(--tile);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .skeleton.sk-art { flex: 1; min-height: 90px; }
+  .skeleton.sk-tall { height: 62px; }
+  .skeleton.sk-grid { height: 96px; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: .5 } }
+
+  :where(button, textarea):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  [hidden] { display: none !important; }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .seg, .origin > div, .recipe > div, .card-empty,
+    .scale button, .choices button, textarea, .sheet {
+      background: #FFFBF4;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, .blob i { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="bg" id="bg" aria-hidden="true">
+    <div class="blob b1"><i></i></div>
+    <div class="blob b2"><i></i></div>
+    <div class="blob b3"><i></i></div>
+    <div class="blob b4"><i></i></div>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="app">
+
+    <header>
+      <div class="brand">Fabrista</div>
+      <div class="venue" id="venue"></div>
+    </header>
+
+    <div class="seg" id="seg" data-drink="espresso" role="tablist" aria-label="Что вы пьёте">
+      <div class="seg-thumb" aria-hidden="true"></div>
+      <button role="tab" data-drink="espresso" aria-selected="true">Эспрессо</button>
+      <button role="tab" data-drink="filter" aria-selected="false">Фильтр</button>
+    </div>
+
+    <main class="card" id="card">
+      <div class="skeleton sk-art"></div>
+      <div class="skeleton sk-tall"></div>
+      <div class="skeleton sk-grid"></div>
+    </main>
+
+    <button class="cta" id="open" hidden>Будем рады отзыву</button>
+
+    <div class="done" id="done" hidden>
+      <b>Спасибо</b>
+      Мы прочитаем каждый ответ.
+    </div>
+
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+
+  <section class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="grabber" aria-hidden="true"></div>
+
+    <div class="sheet-body">
+      <h2 class="sheet-title" id="sheet-title">Оцените эспрессо</h2>
+      <div class="sheet-sub">Анонимно, всё по желанию.</div>
+
+      <div class="scale" id="scale" role="group" aria-labelledby="sheet-title"></div>
+      <div class="scale-ends">
+        <span>1, не понравилось</span>
+        <span>10, отлично</span>
+      </div>
+
+      <div id="questions"></div>
+
+      <div class="question">
+        <p><label for="comment">Что скажете бариста?</label></p>
+        <textarea id="comment" maxlength="500" placeholder="Необязательно"></textarea>
+        <div class="counter"><span id="left">500</span></div>
+      </div>
+    </div>
+
+    <div class="sheet-foot">
+      <button class="send" id="send" disabled>Отправить</button>
+      <div class="error" id="error" hidden></div>
+    </div>
+  </section>
+
+<script>
+(function () {
+  'use strict';
+
+  var LOCATION_ID = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
+
+  var QUESTIONS = [
+    { key: 'q1', text: 'Как быстро вас обслужили?', options: ['Быстро', 'Нормально', 'Долго'] },
+    { key: 'q2', text: 'Атмосфера и чистота', options: ['Отлично', 'Нормально', 'Так себе'] },
+    { key: 'q3', text: 'Вернётесь к нам?', options: ['Да', 'Возможно', 'Нет'] }
+  ];
+
+  var LABELS = { espresso: 'эспрессо', filter: 'фильтр' };
+
+  // Рисунок меняется вместе с напитком: гейзерная кофеварка и воронка.
+  // Линия одной толщины со скруглёнными концами, как нарисовано маркером.
+  var ART = {
+    espresso: '<svg viewBox="0 0 140 150" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M40 138 L49 92 H91 L100 138 Z"/>' +
+      '<path d="M49 92 L55 52 H85 L91 92"/>' +
+      '<path d="M53 52 H87"/>' +
+      '<path d="M56 52 q14 -13 28 0"/>' +
+      '<circle cx="70" cy="38" r="5.5"/>' +
+      '<path d="M91 68 q24 8 0 28"/>' +
+      '<path d="M55 62 l-14 -10"/>' +
+      '<path d="M44 118 H96"/>' +
+      '<path d="M62 26 q4 -7 0 -14" opacity=".5"/>' +
+      '<path d="M78 26 q4 -7 0 -14" opacity=".5"/>' +
+      '</svg>',
+    filter: '<svg viewBox="0 0 140 150" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M36 48 L70 102 L104 48"/>' +
+      '<path d="M30 48 H110"/>' +
+      '<path d="M52 60 L70 92 L88 60" opacity=".45"/>' +
+      '<path d="M70 102 v8"/>' +
+      '<path d="M48 118 H92 L88 142 H52 Z"/>' +
+      '<path d="M43 118 H97"/>' +
+      '<path d="M62 32 q4 -8 0 -16" opacity=".5"/>' +
+      '<path d="M78 32 q4 -8 0 -16" opacity=".5"/>' +
+      '</svg>'
+  };
+
+  var drink = 'espresso';
+  var cards = { espresso: null, filter: null };
+  var answers = { rating: '', q1: '', q2: '', q3: '' };
+  var sent = false;
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ─── Загрузка ────────────────────────────────────────────
+
+  fetch('/api/coffee/' + encodeURIComponent(LOCATION_ID) + '?t=' + Date.now())
+    .then(function (r) {
+      if (!r.ok) throw new Error('bad response');
+      return r.json();
+    })
+    .then(function (data) {
+      $('venue').textContent = data.location.name;
+      cards = data.cards || cards;
+      renderCard();
+      $('open').hidden = false;
+    })
+    .catch(function () {
+      $('card').innerHTML = '<div class="card-empty">Не удалось загрузить карточку. Обновите страницу.</div>';
+      $('open').hidden = false;
+    });
+
+  // ─── Карточка зерна ──────────────────────────────────────
+
+  function renderCard() {
+    var card = cards[drink];
+    var box = $('card');
+    var art = '<div class="art">' + ART[drink] + '</div>';
+
+    // Погасшую и незаполненную карточку показываем одинаково: гость не должен
+    // гадать, свежие ли данные, а отзыв работает в обоих случаях
+    if (!card || card.stale || !(card.descriptors || card.roaster || card.country)) {
+      box.innerHTML = '<div class="card-empty">Карточка этого зерна пока не заполнена. Спросите бариста, он расскажет.</div>' + art;
+      return;
+    }
+
+    var html = '';
+    if (card.descriptors) html += '<div class="descriptors">' + esc(card.descriptors) + '</div>';
+
+    var rows = [
+      ['Обжарщик', card.roaster],
+      ['Страна', card.country],
+      ['Регион', card.region],
+      ['Обработка', card.process]
+    ].filter(function (r) { return r[1]; });
+
+    if (rows.length) {
+      html += '<dl class="origin">' + rows.map(function (r, i) {
+        // Нечётное число плиток: последняя занимает строку целиком, дыр в сетке нет
+        var wide = (rows.length % 2 === 1 && i === rows.length - 1) ? ' class="wide"' : '';
+        return '<div' + wide + '><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>';
+      }).join('') + '</dl>';
+    }
+
+    if (drink === 'espresso' && card.dose_g && card.time_s && card.yield_g) {
+      html += '<div class="recipe">' +
+        '<div><b>' + esc(card.dose_g) + '</b><span>доза, г</span></div>' +
+        '<div><b>' + esc(card.time_s) + '</b><span>время, сек</span></div>' +
+        '<div><b>' + esc(card.yield_g) + '</b><span>выход, г</span></div>' +
+        '</div>';
+    }
+
+    // Рисунок идёт последним и растягивается на остаток высоты: текст прижат
+    // к верху, кнопка к низу, а свободное место между ними занято делом
+    box.innerHTML = html + art;
+  }
+
+  // ─── Живой фон ───────────────────────────────────────────
+
+  var bg = $('bg');
+  var pending = false;
+  var px = 0, py = 0;
+
+  function applyParallax() {
+    pending = false;
+    bg.style.setProperty('--px', px.toFixed(3));
+    bg.style.setProperty('--py', py.toFixed(3));
+  }
+
+  function track(x, y) {
+    px = (x / window.innerWidth) * 2 - 1;
+    py = (y / window.innerHeight) * 2 - 1;
+    // Пишем в стили один раз за кадр: иначе на каждый пиксель движения
+    // браузер пересчитывает размытие и телефон начинает греться
+    if (!pending) {
+      pending = true;
+      requestAnimationFrame(applyParallax);
+    }
+  }
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.addEventListener('pointermove', function (e) { track(e.clientX, e.clientY); }, { passive: true });
+    window.addEventListener('touchmove', function (e) {
+      if (e.touches[0]) track(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+  }
+
+  // ─── Лист отзыва ─────────────────────────────────────────
+
+  function openSheet() {
+    $('scrim').hidden = false;
+    $('sheet').hidden = false;
+    requestAnimationFrame(function () {
+      $('scrim').classList.add('on');
+      $('sheet').classList.add('on');
+    });
+  }
+
+  function closeSheet() {
+    $('scrim').classList.remove('on');
+    $('sheet').classList.remove('on');
+    setTimeout(function () {
+      $('scrim').hidden = true;
+      $('sheet').hidden = true;
+    }, 440);
+  }
+
+  function renderScale() {
+    var html = '';
+    for (var i = 1; i <= 10; i++) {
+      html += '<button type="button" data-rating="' + i + '" aria-pressed="false" aria-label="Оценка ' + i + '">' + i + '</button>';
+    }
+    $('scale').innerHTML = html;
+  }
+
+  function renderQuestions() {
+    $('questions').innerHTML = QUESTIONS.map(function (q) {
+      return '<div class="question"><p>' + esc(q.text) + '</p><div class="choices" data-key="' + q.key + '">' +
+        q.options.map(function (o) {
+          return '<button type="button" data-value="' + esc(o) + '" aria-pressed="false">' + esc(o) + '</button>';
+        }).join('') + '</div></div>';
+    }).join('');
+  }
+
+  function pick(container, button, key, value) {
+    var pressed = button.getAttribute('aria-pressed') === 'true';
+    container.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', 'false');
+    });
+    // Повторный тап снимает ответ: гость может передумать, обязательных полей нет
+    button.setAttribute('aria-pressed', pressed ? 'false' : 'true');
+    answers[key] = pressed ? '' : value;
+    updateSend();
+  }
+
+  function updateSend() {
+    var filled = answers.rating || answers.q1 || answers.q2 || answers.q3 || $('comment').value.trim();
+    $('send').disabled = !filled;
+  }
+
+  function send() {
+    if (sent) return;
+    var btn = $('send');
+    btn.disabled = true;
+    btn.textContent = 'Отправляем';
+    $('error').hidden = true;
+
+    fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locationId: LOCATION_ID,
+        drink: drink,
+        rating: answers.rating,
+        q1: answers.q1,
+        q2: answers.q2,
+        q3: answers.q3,
+        comment: $('comment').value.trim()
+      })
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('save failed');
+        sent = true;
+        closeSheet();
+        $('open').hidden = true;
+        $('done').hidden = false;
+      })
+      .catch(function () {
+        $('error').textContent = 'Не получилось отправить. Попробуйте ещё раз.';
+        $('error').hidden = false;
+        // Возвращаем кнопку в рабочее состояние, иначе она застрянет после сбоя сети
+        btn.textContent = 'Отправить';
+        btn.disabled = false;
+      });
+  }
+
+  // ─── Слушатели ───────────────────────────────────────────
+
+  $('seg').addEventListener('click', function (e) {
+    var tab = e.target.closest('button[data-drink]');
+    if (!tab || drink === tab.dataset.drink) return;
+    drink = tab.dataset.drink;
+    $('seg').dataset.drink = drink;
+    $('seg').querySelectorAll('button').forEach(function (t) {
+      t.setAttribute('aria-selected', String(t === tab));
+    });
+    $('sheet-title').textContent = 'Оцените ' + LABELS[drink];
+    renderCard();
+  });
+
+  $('open').addEventListener('click', openSheet);
+  $('scrim').addEventListener('click', closeSheet);
+  document.querySelector('.grabber').addEventListener('click', closeSheet);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
+  });
+
+  $('scale').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-rating]');
+    if (b) pick($('scale'), b, 'rating', b.dataset.rating);
+  });
+
+  $('questions').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-value]');
+    if (!b) return;
+    var group = b.parentNode;
+    pick(group, b, group.dataset.key, b.dataset.value);
+  });
+
+  $('comment').addEventListener('input', function () {
+    $('left').textContent = String(500 - this.value.length);
+    updateSend();
+  });
+
+  $('send').addEventListener('click', send);
+
+  renderScale();
+  renderQuestions();
+})();
+</script>
+</body>
+</html>

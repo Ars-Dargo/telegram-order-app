@@ -137,4 +137,4 @@ function clearCache() {
   cache.flushAll();
 }
 
-module.exports = { getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, clearCache };
+module.exports = { getAuth, getSuppliers, getProducts, getFoodProducts, getLocations, getOrders, saveOrder, clearCache };
